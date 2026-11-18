@@ -234,8 +234,8 @@ class Fighter {
     if (this.act && !['light', 'heavy', 'swap'].includes(this.act.kind)) return false;
     this.act = null; delete this.st.stance;
     this.applyWeapon(1 - this.wi);
-    this.swapCd = 0.9;
-    this.startAct({ kind: 'swap', dur: 0.3, anim: 'swap', moveMul: 0.85 });
+    this.swapCd = 0.35;
+    this.startAct({ kind: 'swap', dur: 0.15, anim: 'swap', moveMul: 1 });
     Sfx3(this, 'swap', 0.7);
     if (this === G.player && G.onSwap) G.onSwap();
     return true;
