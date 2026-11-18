@@ -5,7 +5,13 @@
 // Connection: PeerJS (WebRTC, browser to browser; peerjs.com only introduces the two browsers, and relays
 // if a router blocks a direct link). Nothing else is sent anywhere.
 const Net = (() => {
-  const N = { active: false, isHost: false, isClient: false, mute: 0, name: '' };
+  // RELAY_OK: no free relay (TURN) server works right now, so 'Hide my IP' is off and its checkbox hidden until one is set up
+  const RELAY_OK = false;
+  const N = { active: false, isHost: false, isClient: false, mute: 0, name: '', hideIp: false };
+  // "Hide my IP": only relayed connections (TURN). The other players then only ever see the relay server's address.
+  const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' }];
+  const peerOpts = () => (RELAY_OK && N.hideIp ? { debug: 0, config: { iceServers: ICE, iceTransportPolicy: 'relay' } } : { debug: 0 });
+  let hostPass = '';
   const PREFIX = 'superpapaya-arena-v1-';
   const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const MAX_FRIENDS = 7;
@@ -56,16 +62,16 @@ const Net = (() => {
   function info(t) { const el = $$('mpInfo'); if (el) el.innerHTML = t; }
   function showLobby(on) {
     $$('mpLobby').classList.toggle('hidden', !on); $$('mpStart').classList.toggle('hidden', on);
-    $$('startBtn').textContent = N.isHost ? 'START ONLINE MATCH' : 'ENTER THE ARENA';
-    $$('startBtn').style.display = N.isClient ? 'none' : '';
+    $$('mpStartBtn').style.display = N.isHost ? '' : 'none';
     $$('mpWait').style.display = N.isClient ? '' : 'none';
+    $$('mpLobbyTitle').textContent = N.isHost ? 'Your lobby' + (hostPass ? ' (locked with a password)' : '') : 'Lobby';
     // Practice has no place online
-    document.querySelectorAll('.modeBtn[data-n="0"]').forEach(b => b.style.display = N.active ? 'none' : '');
     if (N.active && G.teamSize === 0) { G.teamSize = 1; document.querySelectorAll('.modeBtn').forEach(x => x.classList.toggle('sel', x.dataset.n === '1')); }
+    if (typeof showPage === 'function') showPage(G.menuPage === 'pgGear' && on ? 'pgGear' : 'pgOnline');
   }
   function lobbyList() {
     const me = { name: N.name, team: 0, wids: G.playerWeapons.slice(), host: true };
-    return [me, ...friends.map(fr => ({ name: fr.name, team: fr.team, wids: fr.wids }))];
+    return [me, ...friends.filter(fr => fr.hello).map(fr => ({ name: fr.name, team: fr.team, wids: fr.wids }))];
   }
   function drawPlayers(list, myIdx) {
     const box = $$('mpPlayers'); if (!box) return;
@@ -90,9 +96,9 @@ const Net = (() => {
   }
   function pushLobby() {
     const list = lobbyList();
-    friends.forEach((fr, j) => { if (fr.conn.open) fr.conn.send({ t: 'lobby', players: list, you: j + 1, size: G.teamSize, playing: inMatch() }); });
+    friends.forEach((fr, j) => { if (fr.conn.open && fr.hello) fr.conn.send({ t: 'lobby', players: list, you: j + 1, size: G.teamSize, playing: inMatch() }); });
     drawPlayers(list, 0);
-    info(`Room code <span class="mpCode">${code}</span> · tell your friends to click <b>Join</b> and type it. ${friends.length ? friends.length + ' friend' + (friends.length > 1 ? 's' : '') + ' here.' : 'Waiting for friends…'} Bots fill empty places (team size = mode below).`);
+    info(`Room code <span class="mpCode">${code}</span> · your lobby is listed under Open lobbies${hostPass ? ' (locked: players need the password)' : ''}. ${friends.length ? friends.length + ' player' + (friends.length > 1 ? 's' : '') + ' joined.' : 'Waiting for players…'} Bots fill empty places (mode below).`);
   }
 
   // ---------- host ----------
@@ -100,8 +106,9 @@ const Net = (() => {
     if (N.active) return;
     if (typeof Peer === 'undefined') { $$('mpMsg').textContent = 'Could not load the connection library (no internet?).'; return; }
     code = Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * CODE_CH.length)]).join('');
-    $$('mpMsg').textContent = 'Opening a room…';
-    peer = new Peer(PREFIX + code, { debug: 0 });
+    hostPass = String($$('mpPass').value || '').trim().slice(0, 20);
+    $$('mpMsg').textContent = 'Opening a lobby…';
+    peer = new Peer(PREFIX + code, peerOpts());
     peer.on('open', () => {
       N.active = N.isHost = true; $$('mpMsg').textContent = '';
       showLobby(true); pushLobby();
@@ -133,13 +140,17 @@ const Net = (() => {
         if (d.name != null) fr.name = esc(d.name) || 'Friend';
         if (okWids(d.wids)) { fr.wids = d.wids.slice(); fr.picks = okPicks(d.picks, fr.wids); }
         if (d.t === 'hello' && !fr.hello) {
+          if (hostPass && String(d.pass || '') !== hostPass) { // locked lobby: wrong password
+            try { fr.conn.send({ t: 'denied' }); } catch (e) { }
+            setTimeout(() => { try { fr.conn.close(); } catch (e) { } }, 400); dropFriend(fr); return;
+          }
           fr.hello = true;
           const n0 = 1 + friends.filter(x => x !== fr && x.team === 0).length, n1 = friends.filter(x => x !== fr && x.team === 1).length;
           fr.team = n0 <= n1 ? 0 : 1; // join the smaller team
           if (G.state === 'menu') Sfx.play('tick', 0.8);
         }
         pushLobby(); break;
-      case 'team': if (d.team === 0 || d.team === 1) { fr.team = d.team; pushLobby(); } break;
+      case 'team': if (!fr.hello) break; if (d.team === 0 || d.team === 1) { fr.team = d.team; pushLobby(); } break;
       case 'i':
         if (Array.isArray(d.mv) && Array.isArray(d.ad) && Array.isArray(d.ap)) { fr.inp = d; fr.inpAt = performance.now(); }
         break;
@@ -248,20 +259,21 @@ const Net = (() => {
   };
 
   // ---------- friend (client) ----------
-  function joinGame(c) {
+  function joinGame(c, pass) {
     if (N.active) return;
+    joinPass = String(pass || '').trim().slice(0, 20);
     c = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (c.length !== 4) { $$('mpMsg').textContent = 'Type the 4-letter room code your friend sees.'; return; }
     if (typeof Peer === 'undefined') { $$('mpMsg').textContent = 'Could not load the connection library (no internet?).'; return; }
     $$('mpMsg').textContent = 'Connecting…';
-    const me0 = peer = new Peer({ debug: 0 });
+    const me0 = peer = new Peer(peerOpts());
     setTimeout(() => { if (peer === me0 && !N.active) { $$('mpMsg').textContent = `Could not reach game ${c}. Check the code, or ask the host to click Leave and Host again.`; leave(); } }, 15000);
     peer.on('open', () => {
       hostConn = peer.connect(PREFIX + c, { reliable: true });
       hostConn.on('open', () => {
         N.active = N.isClient = true; code = c; $$('mpMsg').textContent = '';
         showLobby(true); info('Connected · waiting for the host to start the match…');
-        send({ t: 'hello', name: N.name, wids: G.playerWeapons, picks: pickMap() });
+        send({ t: 'hello', name: N.name, wids: G.playerWeapons, picks: pickMap(), pass: joinPass });
       });
       hostConn.on('data', fromHost);
       hostConn.on('close', hostGone);
@@ -272,6 +284,7 @@ const Net = (() => {
       if (!N.active) leave();
     });
   }
+  let joinPass = '';
   const pickMap = () => Object.fromEntries(G.playerWeapons.map(w => [w, (G.loadout[w] || []).slice(0, 3)]));
   function send(m) { if (hostConn && hostConn.open) { try { hostConn.send(m); } catch (e) { } } }
   function hostGone() {
@@ -283,12 +296,77 @@ const Net = (() => {
   }
   function leave() {
     if (N.isHost) for (const fr of friends) { try { fr.conn.send({ t: 'bye' }); } catch (e) { } }
-    const p = peer; peer = null; hostConn = null; friends = [];
+    if (N.isHost) dirUnreg();
+    const p = peer; peer = null; hostConn = null; friends = []; hostPass = '';
     N.active = N.isHost = N.isClient = false; lobby = null;
     if (p) setTimeout(() => { try { p.destroy(); } catch (e) { } }, 200);
     showLobby(false); $$('mpPlayers').innerHTML = '';
   }
   N.leave = leave;
+  N.openList = () => dirStart(); // the lobby list connects only once you open the online screen
+
+  // ---------- open lobbies list ----------
+  // There is no game server. The first player who opens the game keeps the list (a well-known PeerJS id);
+  // lobbies check in every 3 s, entries vanish after 12 s without a check-in. If the keeper leaves, someone
+  // else takes over and the lobbies check in again. Passwords never go into the list (only "locked").
+  const DIR_ID = PREFIX + 'lobby-list';
+  let dirPeer = null, dirIsMe = false, dirConn = null, dirList = new Map(), shown = [];
+  const MODES = { 1: '1 v 1', 2: '2 v 2', 3: '3 v 3', 8: 'Free for all' };
+  function myInfo() {
+    const n = 1 + friends.filter(f => f.hello).length, mode = G.teamSize || 1;
+    return { code, name: 'Lobby: ' + N.name, mode, n, max: mode === 8 ? 8 : Math.max(2, mode * 2), playing: inMatch(), locked: !!hostPass };
+  }
+  function cleanInfo(i) {
+    if (!i || typeof i !== 'object') return null;
+    const c = String(i.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); if (c.length !== 4) return null;
+    return { code: c, name: esc(i.name).slice(0, 24) || 'Lobby', mode: [1, 2, 3, 8].includes(+i.mode) ? +i.mode : 3, n: clamp(+i.n || 1, 1, 8), max: clamp(+i.max || 2, 2, 8), playing: !!i.playing, locked: !!i.locked };
+  }
+  function dirLobbies() { const now = Date.now(); for (const [k, v] of dirList) if (now - v.at > 12000) dirList.delete(k); return [...dirList.values()].map(v => v.info); }
+  function dirStart() { if (typeof Peer !== 'undefined' && !dirPeer) claimDir(); }
+  function claimDir() {
+    const p = dirPeer = new Peer(DIR_ID, peerOpts()); dirIsMe = false;
+    p.on('open', () => { if (dirPeer === p) { dirIsMe = true; dirTick(); } });
+    p.on('connection', (c) => {
+      c.on('data', (d) => {
+        if (!d || typeof d !== 'object') return;
+        if (d.t === 'reg') { const i = cleanInfo(d.info); if (i) dirList.set(i.code, { info: i, at: Date.now() }); }
+        else if (d.t === 'unreg') dirList.delete(String(d.code || ''));
+        try { c.send({ t: 'lobbies', list: dirLobbies() }); } catch (e) { }
+      });
+    });
+    p.on('error', (e) => { if (e.type === 'unavailable-id' && dirPeer === p) { try { p.destroy(); } catch (er) { } dirPeer = null; useDir(); } });
+    p.on('disconnected', () => { if (!p.destroyed) { try { p.reconnect(); } catch (e) { } } });
+  }
+  function useDir() {
+    const p = dirPeer = new Peer(peerOpts()); dirIsMe = false;
+    const retry = () => { if (dirPeer !== p) return; try { p.destroy(); } catch (e) { } dirPeer = null; dirConn = null; setTimeout(dirStart, 300 + Math.random() * 1500); };
+    p.on('open', () => {
+      const c = dirConn = p.connect(DIR_ID, { reliable: true });
+      c.on('open', dirTick);
+      c.on('data', (d) => { if (d && d.t === 'lobbies' && Array.isArray(d.list)) { shown = d.list.map(cleanInfo).filter(Boolean); drawGames(); } });
+      c.on('close', retry); c.on('error', retry);
+    });
+    p.on('error', (e) => { if (e.type === 'peer-unavailable' || e.type === 'network' || e.type === 'server-error') retry(); });
+  }
+  function dirUnreg() { if (dirIsMe) dirList.delete(code); else if (dirConn && dirConn.open) try { dirConn.send({ t: 'unreg', code }); } catch (e) { } }
+  function dirTick() {
+    const mine = N.isHost ? myInfo() : null;
+    if (dirIsMe) { if (mine) dirList.set(code, { info: cleanInfo(mine), at: Date.now() }); shown = dirLobbies(); drawGames(); }
+    else if (dirConn && dirConn.open) { try { dirConn.send(mine ? { t: 'reg', info: mine } : { t: 'list' }); } catch (e) { } }
+  }
+  setInterval(dirTick, 3000);
+  function drawGames() {
+    const box = $$('mpGames'); if (!box) return;
+    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return; // don't wipe a password being typed
+    const list = shown.filter(g => !(N.isHost && g.code === code));
+    if (!dirPeer) { box.innerHTML = '<div class="mpEmpty">Can\'t reach the lobby list right now. You can still join by code.</div>'; return; }
+    if (!list.length) { box.innerHTML = '<div class="mpEmpty">No open lobbies right now. Create one below!</div>'; return; }
+    box.innerHTML = list.map(g => `<div class="mpG"><span class="gName">${g.locked ? '🔒 ' : ''}${esc(g.name)}</span><span class="gMeta">${MODES[g.mode] || ''} · ${g.n}/${g.max} players${g.playing ? ' · match on (you join the next one)' : ''}</span>` +
+      (g.locked ? `<input class="tin gPass" data-code="${g.code}" maxlength="20" placeholder="Password" autocomplete="off">` : '') +
+      `<button class="btn gJoin" data-code="${g.code}"${g.n >= g.max ? ' disabled' : ''}>${g.n >= g.max ? 'Full' : 'Join'}</button></div>`).join('');
+    box.querySelectorAll('.gPass').forEach(x => x.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') joinGame(x.dataset.code, x.value); }));
+    box.querySelectorAll('.gJoin').forEach(b => b.onclick = () => { Sfx.init(); const pw = box.querySelector(`.gPass[data-code="${b.dataset.code}"]`); joinGame(b.dataset.code, pw ? pw.value : ''); });
+  }
   N.debug = () => ({ open: !!(peer && peer.open), disconnected: !!(peer && peer.disconnected), destroyed: !!(peer && peer.destroyed), id: peer && peer.id, friends: friends.length, host: !!(hostConn && hostConn.open) });
   N.gearChanged = () => {
     if (N.isClient) send({ t: 'gear', name: N.name, wids: G.playerWeapons, picks: pickMap() });
@@ -309,7 +387,8 @@ const Net = (() => {
     if (!m || typeof m !== 'object') return;
     switch (m.t) {
       case 'lobby': lobby = m; drawPlayers(m.players, m.you); if (m.playing && G.state === 'menu') info('A match is on · you will join the next one.'); else if (G.state === 'menu') info('Connected · waiting for the host to start the match…'); break;
-      case 'full': $$('mpMsg').textContent = 'That game is full.'; break;
+      case 'full': $$('mpMsg').textContent = 'That lobby is full.'; break;
+      case 'denied': { leave(); $$('mpMsg').textContent = 'Wrong password for that lobby.'; break; }
       case 'start': startClient(m); break;
       case 'round': roundClient(m); break;
       case 'rend': G.scores = m.sc; G.state = 'roundEnd'; showRoundEnd(m.w, m.why); break;
@@ -521,10 +600,12 @@ const Net = (() => {
     const nm = $$('mpName'); nm.value = N.name;
     nm.oninput = () => { N.name = esc(nm.value) || 'Player'; saveSettings(); };
     $$('hostBtn').onclick = () => { Sfx.init(); hostGame(); };
-    $$('joinBtn').onclick = () => { Sfx.init(); joinGame($$('mpCode').value); };
-    $$('mpCode').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') joinGame($$('mpCode').value); });
-    nm.addEventListener('keydown', (e) => e.stopPropagation());
-    $$('mpLeave').onclick = () => leave();
+    $$('joinBtn').onclick = () => { Sfx.init(); joinGame($$('mpCode').value, $$('mpCodePass').value); };
+    $$('mpCode').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') joinGame($$('mpCode').value, $$('mpCodePass').value); });
+    for (const id of ['mpName', 'mpPass', 'mpCodePass']) $$(id).addEventListener('keydown', (e) => e.stopPropagation());
+    const hi = $$('mpHideIp'); hi.checked = N.hideIp; hi.onchange = () => { N.hideIp = hi.checked; saveSettings(); };
+    if (RELAY_OK) $$('mpHideIpRow').style.display = '';
+    $$('mpLeave').onclick = () => { leave(); if (typeof showPage === 'function') showPage('pgOnline'); };
     document.querySelectorAll('.modeBtn').forEach(b => b.addEventListener('click', () => { if (N.isHost) pushLobby(); }));
     window.addEventListener('beforeunload', () => { if (N.active) leave(); });
     // the host keeps the fight running even when its tab is in the background

@@ -94,6 +94,9 @@ const Music = (() => {
   }
   function tick() {
     if (!ctx) return;
+    if (nextT < ctx.currentTime - 0.05) { // fell behind (timers slowed): skip ahead instead of playing all missed notes at once
+      const miss = Math.ceil((ctx.currentTime - nextT) / S16); step = (step + miss) % (BARS * 16); nextT += miss * S16;
+    }
     while (nextT < ctx.currentTime + 0.3) { sched(step, nextT); nextT += S16; step = (step + 1) % (BARS * 16); }
   }
   function start() {

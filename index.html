@@ -145,7 +145,7 @@
   .pick { font-family:Cinzel,serif; font-weight:700; background:rgba(40,30,20,.9); border:1px solid rgba(232,198,106,.3); border-radius:8px; padding:8px 16px; cursor:pointer; min-width:210px; text-align:center; }
   .pick.active { border-color:var(--gold); box-shadow:0 0 0 2px rgba(232,198,106,.35); }
   .pk { display:inline-block; width:20px; height:20px; border-radius:50%; background:var(--gold2); color:#1a120a; font-size:12px; line-height:20px; margin-right:4px; }
-  #mp { margin:18px 0 4px; padding:12px 18px 14px; border:1px solid rgba(232,198,106,.3); border-radius:10px; background:rgba(18,14,10,.6); display:flex; flex-direction:column; align-items:center; gap:10px; max-width:760px; width:100%; }
+  #mp { margin:6px 0 4px; padding:12px 18px 14px; border:1px solid rgba(232,198,106,.3); border-radius:10px; background:rgba(18,14,10,.6); display:flex; flex-direction:column; align-items:center; gap:10px; max-width:760px; width:100%; }
   .mpHead { font-family:Cinzel,serif; font-weight:700; color:var(--gold); letter-spacing:.12em; text-transform:uppercase; font-size:15px; }
   .mpRow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
   #mp input { font-family:Inter,sans-serif; font-size:15px; background:rgba(10,8,6,.9); color:var(--ink); border:1px solid rgba(232,198,106,.35); border-radius:6px; padding:7px 10px; width:150px; user-select:text; }
@@ -166,6 +166,20 @@
   #swapPop .spNm { font-family:Cinzel,serif; font-weight:700; font-size:13px; color:var(--gold); text-shadow:0 1px 3px #000, 0 0 8px #000; margin-top:-6px; white-space:nowrap; }
   #swapPop.on { animation:swapPop 1.2s ease-out forwards; }
   @keyframes swapPop { 0% { opacity:0; transform:translate(-50%,-50%) scale(.55); } 14% { opacity:1; transform:translate(-50%,-50%) scale(1.12); } 26% { transform:translate(-50%,-50%) scale(1); } 70% { opacity:1; transform:translate(-50%,-60%) scale(1); } 100% { opacity:0; transform:translate(-50%,-85%) scale(.95); } }
+  .page { display:flex; flex-direction:column; align-items:center; width:100%; max-width:1180px; }
+  .page.hidden { display:none !important; }
+  .homeBtns { display:flex; gap:18px; flex-wrap:wrap; justify-content:center; margin:26px 0 22px; }
+  .homeBtns .btn.big { min-width:280px; }
+  .btn.back { align-self:flex-start; margin-bottom:8px; }
+  input.tin { font-family:Inter,sans-serif; font-size:15px; background:rgba(10,8,6,.9); color:var(--ink); border:1px solid rgba(232,198,106,.35); border-radius:6px; padding:7px 10px; width:170px; user-select:text; }
+  #mpGames { width:100%; display:flex; flex-direction:column; gap:6px; margin:4px 0 8px; }
+  .mpG { display:flex; align-items:center; gap:10px; padding:8px 12px; background:rgba(0,0,0,.3); border:1px solid rgba(232,198,106,.2); border-radius:6px; flex-wrap:wrap; }
+  .mpG .gName { font-weight:700; flex:1; min-width:150px; } .mpG .gMeta { color:var(--dim); font-size:13px; }
+  .mpG input { width:130px !important; }
+  .mpEmpty { color:var(--dim); font-size:13px; text-align:center; padding:6px; }
+  .mpWarn { color:#e8b48a; font-size:12.5px; max-width:680px; text-align:center; margin:8px 0 2px; line-height:1.4; }
+  .mpChk { color:var(--dim); font-size:12.5px; display:flex; gap:8px; align-items:center; max-width:640px; }
+  #mpStartBtn { margin-top:6px; }
   .hint { color:var(--dim); font-size:12px; margin-bottom:10px; }
   .modeBtn { font-family:Cinzel,serif; font-weight:700; background:rgba(40,30,20,.9); color:var(--ink); border:1px solid rgba(232,198,106,.35); border-radius:6px; padding:8px 16px; cursor:pointer; font-size:14px; }
   .modeBtn.sel { background:var(--gold2); color:#1a120a; border-color:var(--gold); }
@@ -228,32 +242,14 @@
 
 <div id="menu">
   <h1>SUPER PAPAYA ARENA</h1>
-  <div class="tag">Arena Â· Ruins of Hollowmere Â· first to 3 rounds</div>
-  <div id="picks"><div class="pick" id="pick0"></div><div class="pick" id="pick1"></div></div>
-  <div class="hint">Pick two weapons: click a slot above, then a weapon card. Switch between them in a fight with 1 or the mouse wheel.</div>
-  <div class="hint">Then choose <b>3 of 6 skills</b> for each weapon below. The order you pick them sets Q, R and F; click a chosen skill again to drop it.</div>
-  <div id="skills"></div>
-  <div id="classGrid"></div>
-  <div class="row"><span class="lbl">Mode</span>
-    <button class="modeBtn" data-n="0">Practice</button>
-    <button class="modeBtn" data-n="1">1 v 1</button>
-    <button class="modeBtn" data-n="2">2 v 2</button>
-    <button class="modeBtn sel" data-n="3">3 v 3</button>
-    <button class="modeBtn" data-n="8" title="8 fighters, everyone against everyone">Free for all (8)</button>
-    <span class="lbl" style="margin-left:14px">Bots</span>
-    <button class="diffBtn" data-d="easy">Easy</button>
-    <button class="diffBtn sel" data-d="normal">Normal</button>
-    <button class="diffBtn" data-d="hard">Hard</button>
-  </div>
-  <div id="mp">
-    <div class="mpHead">Play with friends</div>
-    <div class="mpRow"><label class="lbl" for="mpName">Your name</label><input id="mpName" maxlength="16" spellcheck="false"></div>
-    <div class="mpRow" id="mpStart"><button class="btn" id="hostBtn">Host a game</button><span class="lbl">or join</span><input id="mpCode" maxlength="4" placeholder="CODE" spellcheck="false" autocomplete="off"><button class="btn" id="joinBtn">Join</button></div>
-    <div id="mpLobby" class="hidden"><div id="mpInfo"></div><div id="mpPlayers"></div><button class="btn" id="mpLeave">Leave online game</button></div>
-    <div id="mpMsg"></div>
-  </div>
-  <button class="btn big" id="startBtn">ENTER THE ARENA</button>
-  <div id="mpWait" style="display:none">The host starts the match. Pick your weapons and skills meanwhile.</div>
+  <div class="tag">Arena · Ruins of Hollowmere · first to 3 rounds</div>
+  <!-- 1. start screen -->
+  <div class="page" id="pgHome">
+    <div class="homeBtns">
+      <button class="btn big" id="goBots">PLAY VS BOTS</button>
+      <button class="btn big" id="goOnline">PLAY ONLINE</button>
+    </div>
+    <div class="mpRow"><label class="lbl" for="mpName">Your name</label><input id="mpName" class="tin" maxlength="16" spellcheck="false"></div>
   <div class="settings">
     <label>Mouse sensitivity <input id="sens2" type="range" min="0.3" max="2.5" step="0.05" value="1"></label>
     <label>Music <input id="mus" type="range" min="0" max="1" step="0.05" value="0.5"></label>
@@ -261,11 +257,59 @@
     <label>Field of view <input id="fov" type="range" min="60" max="95" step="1" value="70"></label>
   </div>
   <div class="controls">
-    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;Â·&nbsp; <kbd>Mouse</kbd> look &nbsp;Â·&nbsp; <kbd>Left click</kbd> light attack (hold for a charged heavy) &nbsp;Â·&nbsp;
-    <kbd>Right click</kbd> block / aim / flamethrower &nbsp;Â·&nbsp; <kbd>Shift</kbd> dodge roll (stamina) &nbsp;Â·&nbsp; <kbd>Space</kbd> jump &nbsp;Â·&nbsp;
-    <kbd>Q</kbd><kbd>R</kbd><kbd>F</kbd> abilities &nbsp;Â·&nbsp; <kbd>1</kbd> / <kbd>Wheel</kbd> swap weapon &nbsp;Â·&nbsp; <kbd>E</kbd> health potion (3 per round) &nbsp;Â·&nbsp; <kbd>Tab</kbd> scoreboard &nbsp;Â·&nbsp; <kbd>H</kbd> show hitboxes &nbsp;Â·&nbsp; <kbd>Esc</kbd> pause
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;·&nbsp; <kbd>Mouse</kbd> look &nbsp;·&nbsp; <kbd>Left click</kbd> light attack (hold for a charged heavy) &nbsp;·&nbsp;
+    <kbd>Right click</kbd> block / aim / flamethrower &nbsp;·&nbsp; <kbd>Shift</kbd> dodge roll (stamina) &nbsp;·&nbsp; <kbd>Space</kbd> jump &nbsp;·&nbsp;
+    <kbd>Q</kbd><kbd>R</kbd><kbd>F</kbd> abilities &nbsp;·&nbsp; <kbd>1</kbd> / <kbd>Wheel</kbd> swap weapon &nbsp;·&nbsp; <kbd>E</kbd> health potion (3 per round) &nbsp;·&nbsp; <kbd>Tab</kbd> scoreboard &nbsp;·&nbsp; <kbd>H</kbd> show hitboxes &nbsp;·&nbsp; <kbd>Esc</kbd> pause
     <div class="note">Dodging gives a moment of invulnerability. Blocking from the front drains stamina; heavy attacks drain it faster. Run out and your guard breaks, and you are exhausted (slower, no dodge or block) until it recovers.
     Melee hits stagger light attacks, but heavy attacks and charges have grit and can't be interrupted. Repeated stuns and roots get shorter, then the target is briefly immune. Daggers deal extra damage from behind.</div>
+  </div>
+  </div>
+  <!-- 2. online lobbies -->
+  <div class="page hidden" id="pgOnline">
+    <button class="btn back" id="onlineBack">&larr; Back</button>
+    <div id="mp">
+      <div id="mpStart">
+        <div class="mpHead">Open lobbies</div>
+        <div id="mpGames"><div class="mpEmpty">Looking for open lobbies…</div></div>
+        <div class="mpHead">Create a lobby</div>
+        <div class="mpRow"><input id="mpPass" class="tin" maxlength="20" placeholder="Password (optional)" autocomplete="off" spellcheck="false"><button class="btn" id="hostBtn">Create lobby</button></div>
+        <div class="mpRow"><span class="lbl">Join by code</span><input id="mpCode" class="tin" maxlength="4" placeholder="CODE" spellcheck="false" autocomplete="off"><input id="mpCodePass" class="tin" maxlength="20" placeholder="Password (if locked)" autocomplete="off" spellcheck="false"><button class="btn" id="joinBtn">Join</button></div>
+        <label class="mpChk" id="mpHideIpRow" style="display:none"><input type="checkbox" id="mpHideIp"> Hide my IP address from other players (game traffic goes through a relay server; can add a little lag)</label>
+        <div class="mpWarn">Heads up: online play connects your browser straight to the other players, so they can see your IP address (roughly your city and internet provider), and you can see theirs. Play with people you know, and use a password on your lobby.</div>
+      </div>
+      <div id="mpLobby" class="hidden">
+        <div class="mpHead" id="mpLobbyTitle">Your lobby</div>
+        <div id="mpInfo"></div><div id="mpPlayers"></div>
+        <div id="modeSlotOnline"></div>
+        <div class="mpRow"><button class="btn" id="mpGear">Choose weapons &amp; skills</button><button class="btn" id="mpLeave">Leave lobby</button></div>
+        <button class="btn big" id="mpStartBtn">START MATCH</button>
+        <div id="mpWait">The host starts the match. Pick your weapons and skills meanwhile.</div>
+      </div>
+      <div id="mpMsg"></div>
+    </div>
+  </div>
+  <!-- 3. weapons and skills -->
+  <div class="page hidden" id="pgGear">
+    <button class="btn back" id="gearBack">&larr; Back</button>
+    <div id="picks"><div class="pick" id="pick0"></div><div class="pick" id="pick1"></div></div>
+    <div class="hint">Pick two weapons: click a slot above, then a weapon card. Switch between them in a fight with 1 or the mouse wheel.</div>
+    <div class="hint">Then choose <b>3 of 6 skills</b> for each weapon below. The order you pick them sets Q, R and F; click a chosen skill again to drop it.</div>
+    <div id="skills"></div>
+    <div id="classGrid"></div>
+    <div id="modeSlotGear">
+    <div class="row" id="modeRow"><span class="lbl">Mode</span>
+      <button class="modeBtn" data-n="0">Practice</button>
+      <button class="modeBtn" data-n="1">1 v 1</button>
+      <button class="modeBtn" data-n="2">2 v 2</button>
+      <button class="modeBtn sel" data-n="3">3 v 3</button>
+      <button class="modeBtn" data-n="8" title="8 fighters, everyone against everyone">Free for all (8)</button>
+      <span class="lbl" style="margin-left:14px">Bots</span>
+      <button class="diffBtn" data-d="easy">Easy</button>
+      <button class="diffBtn sel" data-d="normal">Normal</button>
+      <button class="diffBtn" data-d="hard">Hard</button>
+    </div>
+    </div>
+    <button class="btn big" id="startBtn">ENTER THE ARENA</button>
   </div>
 </div>
 
@@ -312,27 +356,27 @@
 
 <div id="endScreen" class="hidden">
   <div id="endTitle">VICTORY</div>
-  <div id="endScore">3 â€“ 0</div>
+  <div id="endScore">3 – 0</div>
   <table id="endTable"></table>
-  <div id="endWait" style="display:none">Waiting for the host to start the next matchâ€¦</div>
+  <div id="endWait" style="display:none">Waiting for the host to start the next match…</div>
   <div class="row"><button class="btn big" id="rematchBtn">REMATCH</button><button class="btn" id="menuBtn">Change weapons</button></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/util.js?v=49"></script>
-<script src="js/sound.js?v=49"></script>
-<script src="js/music.js?v=49"></script>
-<script src="js/map.js?v=49"></script>
-<script src="js/weapons.js?v=49"></script>
-<script src="js/weapons2.js?v=49"></script>
-<script src="js/weapons3.js?v=49"></script>
-<script src="js/fighter.js?v=49"></script>
-<script src="js/models2.js?v=49"></script>
-<script src="js/ai.js?v=49"></script>
-<script src="js/effects.js?v=49"></script>
-<script src="js/net.js?v=49"></script>
-<script src="js/game.js?v=49"></script>
-<script src="js/hudedit.js?v=49"></script>
+<script src="js/util.js?v=52"></script>
+<script src="js/sound.js?v=52"></script>
+<script src="js/music.js?v=52"></script>
+<script src="js/map.js?v=52"></script>
+<script src="js/weapons.js?v=52"></script>
+<script src="js/weapons2.js?v=52"></script>
+<script src="js/weapons3.js?v=52"></script>
+<script src="js/fighter.js?v=52"></script>
+<script src="js/models2.js?v=52"></script>
+<script src="js/ai.js?v=52"></script>
+<script src="js/effects.js?v=52"></script>
+<script src="js/net.js?v=52"></script>
+<script src="js/game.js?v=52"></script>
+<script src="js/hudedit.js?v=52"></script>
 </body>
 </html>

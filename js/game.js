@@ -20,13 +20,13 @@ function loadSettings() {
     if (s.sens) G.sens = s.sens; if (s.fov) G.fov = s.fov; if (s.vol != null) Sfx.volume = s.vol; if (s.music != null) Music.volume = s.music;
     if (s.loadout && typeof s.loadout === 'object') G.loadout = s.loadout;
     if (s.weapons && s.weapons.length === 2 && s.weapons.every(w => WEAPONS[w])) G.playerWeapons = s.weapons;
-    if (s.name) Net.name = String(s.name).slice(0, 16);
+    if (s.name) Net.name = String(s.name).slice(0, 16); if (s.hideIp === false) Net.hideIp = false;
     if (s.diff) G.diff = s.diff; if (s.teamSize != null) G.teamSize = s.teamSize;
   } catch (e) { }
 }
 function saveSettings() {
   Net.gearChanged();
-  try { localStorage.setItem('emberfall.settings', JSON.stringify({ name: Net.name, loadout: G.loadout, sens: G.sens, fov: G.fov, vol: Sfx.volume, music: Music.volume, weapons: G.playerWeapons, diff: G.diff, teamSize: G.teamSize })); } catch (e) { }
+  try { localStorage.setItem('emberfall.settings', JSON.stringify({ name: Net.name, hideIp: Net.hideIp, loadout: G.loadout, sens: G.sens, fov: G.fov, vol: Sfx.volume, music: Music.volume, weapons: G.playerWeapons, diff: G.diff, teamSize: G.teamSize })); } catch (e) { }
 }
 
 // ================= combat API (used by weapons.js) =================
@@ -400,6 +400,18 @@ function refreshCards() {
     $('pick' + i).classList.toggle('active', G.pickSlot === i);
   });
 }
+// The menu has three screens: start, online lobbies, weapons & skills
+function showPage(id) {
+  for (const p of ['pgHome', 'pgOnline', 'pgGear']) $(p).classList.toggle('hidden', p !== id);
+  const online = Net.active || id === 'pgOnline';
+  $(id === 'pgOnline' ? 'modeSlotOnline' : 'modeSlotGear').appendChild($('modeRow'));
+  $('modeRow').style.display = id === 'pgOnline' ? (Net.isHost ? '' : 'none') : (Net.active ? 'none' : '');
+  $('startBtn').style.display = Net.active ? 'none' : '';
+  $('gearBack').innerHTML = Net.active ? '&larr; Back to lobby' : '&larr; Back';
+  document.querySelectorAll('.modeBtn[data-n="0"]').forEach(b => b.style.display = online ? 'none' : '');
+  G.menuPage = id; $('menu').scrollTop = 0;
+  if (id === 'pgOnline') Net.openList();
+}
 function setupMenu() {
   loadSettings();
   const grid = $('classGrid'); grid.innerHTML = '';
@@ -432,14 +444,22 @@ function setupMenu() {
   const kick = () => { if (G.state === 'menu' || G.state === 'matchEnd') Music.start(); };
   document.addEventListener('pointerdown', kick); document.addEventListener('keydown', kick);
   $('fov').value = G.fov; $('fov').oninput = (e) => { G.fov = parseFloat(e.target.value); saveSettings(); };
-  $('startBtn').onclick = () => { Sfx.init(); if (Net.isClient) return; startMatch(); };
+  $('startBtn').onclick = () => { Sfx.init(); if (Net.active) return; startMatch(); };
+  $('goBots').onclick = () => { Sfx.init(); showPage('pgGear'); };
+  $('goOnline').onclick = () => { Sfx.init(); showPage('pgOnline'); };
+  $('onlineBack').onclick = () => { if (Net.active) Net.leave(); showPage('pgHome'); };
+  $('gearBack').onclick = () => showPage(Net.active ? 'pgOnline' : 'pgHome');
+  $('mpGear').onclick = () => showPage('pgGear');
+  $('mpStartBtn').onclick = () => { Sfx.init(); if (Net.isHost) startMatch(); };
   $('rematchBtn').onclick = () => { Sfx.init(); if (Net.isClient) return; startMatch(); };
   $('menuBtn').onclick = () => toMenu();
   $('quitBtn').onclick = () => { if (Net.isClient) Net.leave(); toMenu(); };
   $('resumeBtn').onclick = () => resume();
   Net.setupMenu();
+  showPage('pgHome');
 }
 function toMenu() {
+  showPage(Net.active ? 'pgOnline' : 'pgGear');
   G.netPaused = false; if (Net.isHost && G.state !== 'menu') Net.backToLobby();
   clearArena(); for (const f of G.fighters) { scene.remove(f.group); if (f.trail) scene.remove(f.trail.mesh); if (f.hbox) scene.remove(f.hbox); } G.fighters = []; G.player = null;
   G.state = 'menu'; Music.start(); $('menu').classList.remove('hidden'); $('hud').classList.add('hidden'); $('endScreen').classList.add('hidden'); $('pause').classList.add('hidden');

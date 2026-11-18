@@ -5,7 +5,8 @@
 const Sfx = {
   ctx: null, master: null, wet: null, noiseBuf: null, last: {}, voices: 0, volume: 0.8,
   init() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    this.bindFocus();
+    if (this.ctx) { if (this.ctx.state === 'suspended' && !document.hidden && document.hasFocus()) this.ctx.resume(); return; }
     try {
       const c = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.connect(c.destination);
@@ -20,6 +21,12 @@ const Sfx = {
       const conv = c.createConvolver(); conv.buffer = ir;
       this.wet = c.createGain(); this.wet.gain.value = 0.22; this.wet.connect(conv); conv.connect(this.master);
     } catch (e) { this.ctx = null; }
+  },
+  // the game is muted while it isn't on screen (alt-tab, other tab, minimized)
+  bindFocus() {
+    if (this._bound) return; this._bound = true;
+    const upd = () => { if (!this.ctx) return; if (document.hidden || !document.hasFocus()) this.ctx.suspend().catch(() => {}); else this.ctx.resume().catch(() => {}); };
+    document.addEventListener('visibilitychange', upd); window.addEventListener('blur', upd); window.addEventListener('focus', upd);
   },
   setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; },
   // Listener = the camera (position + facing)
@@ -66,7 +73,7 @@ const Sfx = {
   },
   // the sounds ----------------------------------------------------------------------
   play(name, vol, pos) {
-    if (!this.ctx || (vol ?? 1) <= 0.01) return;
+    if (!this.ctx || this.ctx.state !== 'running' || (vol ?? 1) <= 0.01) return; // (muted while off screen: skip, don't pile up)
     const now = performance.now();
     if (this.last[name] && now - this.last[name] < 28) return; // same sound twice in one frame
     this.last[name] = now;
