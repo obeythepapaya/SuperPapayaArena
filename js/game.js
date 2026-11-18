@@ -670,7 +670,10 @@ function playerControl(dt) {
   const mv = new V3().addScaledVector(fw, mz).addScaledVector(rt, mx);
   if (mv.lengthSq() > 0) mv.normalize();
   f.moveDir.copy(mv);
-  f.faceYaw = G.camYaw;
+  // your character faces where you walk (never walks backwards); attacking, blocking, aiming or casting turns it to the crosshair
+  f.aimYaw = G.camYaw;
+  const busy = (f.act && !['swap', 'drink', 'dodge'].includes(f.act.kind)) || mouse.r || mouse.l || f.blocking || f.aiming || f.channeling || f.charging;
+  if (busy) f.faceYaw = G.camYaw; else if (mv.lengthSq() > 0.01) f.faceYaw = Math.atan2(mv.x, mv.z);
   computeAim(f);
   f.rmb = mouse.r;
   if (!f.W.autoFire && mouse.l) { const held = G.time - mouse.lDown; f.charging = held > 0.22 && !f.act && !f.has('stun'); }
@@ -717,7 +720,7 @@ Fighter.prototype.getAimTarget = function (maxD) {
     const t = this.softTarget;
     if (t && t.alive && d2(this.pos, t.pos) <= maxD) return t;
     let best = null, bd = maxD;
-    for (const e of G.enemiesOf(this)) { if (e.has('vanish')) continue; const d = d2(this.pos, e.pos); if (d < bd && Math.abs(wrapAngle(yawTo(this.pos, e.pos) - this.yaw)) < 0.35) { bd = d; best = e; } }
+    for (const e of G.enemiesOf(this)) { if (e.has('vanish')) continue; const d = d2(this.pos, e.pos); if (d < bd && Math.abs(wrapAngle(yawTo(this.pos, e.pos) - (this.aimYaw ?? this.yaw))) < 0.35) { bd = d; best = e; } }
     return best;
   }
   const t = this.ctrl && this.ctrl.target;

@@ -421,6 +421,7 @@ class Fighter {
   }
   startAct(a) {
     a.t = 0; a.n = (G.actN = (G.actN || 0) + 1); a.events = a.events || []; a.events.forEach(e => (e.done = false));
+    if (this.isPlayer && this.aimYaw != null && !['dodge', 'drink', 'swap'].includes(a.kind)) this.faceYaw = this.aimYaw; // attacks go where you aim, not where you walk
     if (a.lockFace) this.yaw = this.faceYaw;
     if (a.kind === 'heavy') a.grit = true;
     // melee aim assist: a swing turns up to ~25 degrees toward an enemy that's close in front
