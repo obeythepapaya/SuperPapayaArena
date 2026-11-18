@@ -8,7 +8,7 @@ const Net = (() => {
   const N = { active: false, isHost: false, isClient: false, mute: 0, name: '' };
   const PREFIX = 'superpapaya-arena-v1-';
   const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const MAX_FRIENDS = 5;
+  const MAX_FRIENDS = 7;
   let peer = null, code = '';
   let friends = [];      // host: { conn, name, team, wids, picks, f, inp, inpAt, q, ack }
   let hostConn = null;   // friend: the link to the host
@@ -30,6 +30,7 @@ const Net = (() => {
     return v;
   }
   function dec(v) {
+    if (v === null) return undefined; // a setting left at its default on the host (sent as empty) stays at its default here
     if (v && typeof v === 'object') { if ('f' in v) return G.fighters[v.f] || null; if (v.v) return new V3(v.v[0], v.v[1], v.v[2]); }
     return v;
   }
@@ -75,6 +76,11 @@ const Net = (() => {
       }).join('') || '<div class="mpP dim">bots</div>';
       return `<div class="mpTeam" style="border-color:${TEAM_CSS[team]}"><div class="mpTH" style="color:${TEAM_CSS[team]}">${team === 0 ? 'Blue team' : 'Red team'}</div>${rows}</div>`;
     };
+    if (G.teamSize === 8 || (lobby && lobby.size === 8)) {
+      const rows = list.map((p, i) => `<div class="mpP${i === myIdx ? ' me' : ''}">${p.wids.map(w => WEAPONS[w] ? WEAPONS[w].icon : '').join(' ')} <b>${esc(p.name)}</b>${p.host ? ' <span class="mpTag">host</span>' : ''}</div>`).join('');
+      box.innerHTML = `<div class="mpTeam" style="border-color:var(--gold)"><div class="mpTH" style="color:var(--gold)">Free for all · everyone against everyone · bots fill to 8</div>${rows}</div>`;
+      return;
+    }
     box.innerHTML = col(0) + col(1);
     box.querySelectorAll('.mpSw').forEach(b => b.onclick = () => {
       const i = +b.dataset.i;
@@ -150,8 +156,8 @@ const Net = (() => {
     if (G.state === 'menu') pushLobby();
   }
   // The friends' fighters for a new match (game.js adds the host and bots)
-  N.friendFighters = () => friends.filter(fr => fr.hello && fr.conn.open).map(fr => {
-    const f = new Fighter(fr.team, fr.wids.slice(), fr.name, true, fr.picks);
+  N.friendFighters = (ffa) => friends.filter(fr => fr.hello && fr.conn.open).map((fr, i) => {
+    const f = new Fighter(ffa ? 1 + i : fr.team, fr.wids.slice(), fr.name, true, fr.picks);
     f.human = true; fr.f = f; fr.inp = null; fr.q = [];
     new RemoteCtrl(f, fr);
     return f;
@@ -188,19 +194,20 @@ const Net = (() => {
       fr.q.length = 0;
     }
   }
-  const flipT = (fr, t) => (fr.team === 1 ? 1 - t : t); // each friend sees their own team as blue
-  const flipSc = (fr) => (fr.team === 1 ? [G.scores[1], G.scores[0]] : G.scores.slice());
+  // each friend sees their own team as team 0 (blue): their team and team 0 trade places on their screen
+  const flipT = (fr, t) => { const m = fr.f ? fr.f.team : fr.team; return t < 0 ? t : t === m ? 0 : t === 0 ? m : t; };
+  const flipSc = (fr) => G.scores.map((s, t) => G.scores[flipT(fr, t)]);
   N.sendStart = () => {
     evs = [];
     friends.forEach(fr => {
       if (!fr.f || !fr.conn.open) return;
       const roster = G.fighters.map(f => ({ name: f.name, team: flipT(fr, f.team), wids: f.wids, human: !!f.human, picks: Object.fromEntries(f.wids.map(w => [w, ['q', 'r', 'f'].map(k => f.kit[w][k].id)])) }));
-      fr.conn.send({ t: 'start', roster, you: G.fighters.indexOf(fr.f), size: G.teamSize });
+      fr.conn.send({ t: 'start', roster, you: G.fighters.indexOf(fr.f), size: G.teamSize, ffa: !!G.ffa });
     });
     // anyone in the lobby without a place (joined too late) just waits for the next match
   };
   N.roundStart = () => { flush(); bcast(fr => ({ t: 'round', rd: G.round, sc: flipSc(fr), f: G.fighters.map(f => [r2(f.pos.x), r2(f.pos.y), r2(f.pos.z), r2(f.yaw)]) })); };
-  N.roundEnd = (w, why) => { flush(); bcast(fr => ({ t: 'rend', w: w < 0 ? w : flipT(fr, w), why: why || '', sc: flipSc(fr) })); };
+  N.roundEnd = (w, why) => { flush(); bcast(fr => ({ t: 'rend', w: flipT(fr, w), why: why || '', sc: flipSc(fr) })); };
   N.matchEnd = () => { flush(); bcast(fr => ({ t: 'mend', sc: flipSc(fr), stats: G.fighters.map(f => [f.stats.kills, f.stats.deaths, Math.round(f.stats.dmg), Math.round(f.stats.heal)]) })); };
   N.backToLobby = () => { bcast(() => ({ t: 'menu' })); friends.forEach(fr => (fr.f = null)); setTimeout(pushLobby, 50); };
   function bcast(mk) { for (const fr of friends) if (fr.conn.open && fr.f) fr.conn.send(mk(fr)); }
@@ -325,7 +332,7 @@ const Net = (() => {
     me.tryJump = () => { sendPress('jump'); return false; };
     me.trySwap = () => sendPress('swap');
     for (const f of G.fighters) scene.add(f.group);
-    G.practice = false; G.scores = [0, 0]; G.round = 1; G.netPaused = false; Music.stop();
+    G.practice = false; G.ffa = !!m.ffa; G.scores = G.ffa ? new Array(8).fill(0) : [0, 0]; G.round = 1; G.netPaused = false; Music.stop();
     $$('menu').classList.add('hidden'); $$('endScreen').classList.add('hidden'); $$('pause').classList.add('hidden'); $$('hud').classList.remove('hidden'); $$('dps').classList.add('hidden');
     buildHud();
     G.state = 'countdown'; G.stateT = 3.5; G.lastTick = 4;
@@ -412,7 +419,7 @@ const Net = (() => {
     switch (type) {
       case 'fx': {
         const [name, ...args] = a;
-        if (!FXN.includes(name) || args.some(x => x === null && name !== 'particle')) return;
+        if (!FXN.includes(name) || !args[0]) return; // (the first argument is always a place or a fighter)
         G.fx[name](...args);
         if (name === 'explosion' && args[0] && camera.position.distanceTo(args[0]) < 14) G.shake = Math.min(1, G.shake + 0.3);
         break;

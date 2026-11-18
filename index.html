@@ -93,11 +93,11 @@
   #slotRow { display:flex; align-items:flex-end; gap:16px; }
   #weapName { font-family:Cinzel,serif; font-size:13px; color:var(--gold); text-align:right; width:120px; text-shadow:0 1px 3px #000; }
   #slots { display:flex; gap:8px; }
-  .slot { position:relative; width:58px; height:58px; background:var(--panel); border:1px solid rgba(232,198,106,.4); border-radius:8px; overflow:visible; pointer-events:auto; }
+  .slot { position:relative; width:70px; height:70px; background:var(--panel); border:1px solid rgba(232,198,106,.4); border-radius:8px; overflow:visible; pointer-events:auto; }
   .slot.ready { border-color:var(--gold); box-shadow:0 0 10px rgba(232,198,106,.25); }
   .slot.nomana .sIcon { filter:grayscale(1) brightness(.6); }
   .slot.empty { opacity:.4; }
-  .sIcon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:26px; }
+  .sIcon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:32px; }
   .sKey { position:absolute; left:4px; top:2px; font-size:11px; font-weight:700; color:var(--gold); text-shadow:0 1px 2px #000; }
   .sCd { position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.65); border-radius:0 0 7px 7px; }
   .sCdT { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:17px; text-shadow:0 1px 3px #000; }
@@ -198,8 +198,8 @@
   .fx .fxv { position:absolute; left:0; right:0; bottom:3px; text-align:center; font-weight:800; line-height:1; text-shadow:0 1px 2px #000, 0 0 3px #000; letter-spacing:-.02em; }
   .fx.good .fxv { color:#c8ffd0; } .fx.bad .fxv { color:#ffd0c8; }
   .fx .fxt { position:absolute; right:2px; top:1px; font-size:10px; font-weight:700; color:#fff; text-shadow:0 1px 2px #000; }
-  .fxrow.big .fx { width:40px; height:40px; } .fxrow.big .fxi { font-size:17px; margin-top:-9px; } .fxrow.big .fxv { font-size:11px; }
-  .fxrow.small { gap:2px; margin-top:2px; } .fxrow.small .fx { width:24px; height:24px; border-width:1.5px; border-radius:4px; } .fxrow.small .fxi { font-size:11px; margin-top:-7px; } .fxrow.small .fxv { font-size:8.5px; bottom:2px; } .fxrow.small .fx i { height:2px; }
+  .fxrow.big .fx { width:52px; height:52px; } .fxrow.big .fxi { font-size:23px; margin-top:-11px; } .fxrow.big .fxv { font-size:13px; } .fxrow.big .fxt { font-size:12px; }
+  .fxrow.small { gap:2px; margin-top:2px; } .fxrow.small .fx { width:32px; height:32px; border-width:1.5px; border-radius:4px; } .fxrow.small .fxi { font-size:15px; margin-top:-8px; } .fxrow.small .fxv { font-size:10.5px; bottom:2px; } .fxrow.small .fx i { height:2px; }
   #myFx { min-height:42px; margin-bottom:2px; max-width:min(520px,92vw); }
   #tgt { position:absolute; top:62px; left:50%; transform:translateX(-50%); width:min(380px,80vw); background:var(--panel); border:1px solid rgba(232,198,106,.35); border-radius:8px; padding:6px 10px 8px; text-align:center; }
   #tgName { font-family:Cinzel,serif; font-weight:700; font-size:15px; display:flex; justify-content:center; gap:8px; align-items:center; }
@@ -239,6 +239,7 @@
     <button class="modeBtn" data-n="1">1 v 1</button>
     <button class="modeBtn" data-n="2">2 v 2</button>
     <button class="modeBtn sel" data-n="3">3 v 3</button>
+    <button class="modeBtn" data-n="8" title="8 fighters, everyone against everyone">Free for all (8)</button>
     <span class="lbl" style="margin-left:14px">Bots</span>
     <button class="diffBtn" data-d="easy">Easy</button>
     <button class="diffBtn sel" data-d="normal">Normal</button>
@@ -319,19 +320,19 @@
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/util.js?v=43"></script>
-<script src="js/sound.js?v=43"></script>
-<script src="js/music.js?v=43"></script>
-<script src="js/map.js?v=43"></script>
-<script src="js/weapons.js?v=43"></script>
-<script src="js/weapons2.js?v=43"></script>
-<script src="js/weapons3.js?v=43"></script>
-<script src="js/fighter.js?v=43"></script>
-<script src="js/models2.js?v=43"></script>
-<script src="js/ai.js?v=43"></script>
-<script src="js/effects.js?v=43"></script>
-<script src="js/net.js?v=43"></script>
-<script src="js/game.js?v=43"></script>
-<script src="js/hudedit.js?v=43"></script>
+<script src="js/util.js?v=46"></script>
+<script src="js/sound.js?v=46"></script>
+<script src="js/music.js?v=46"></script>
+<script src="js/map.js?v=46"></script>
+<script src="js/weapons.js?v=46"></script>
+<script src="js/weapons2.js?v=46"></script>
+<script src="js/weapons3.js?v=46"></script>
+<script src="js/fighter.js?v=46"></script>
+<script src="js/models2.js?v=46"></script>
+<script src="js/ai.js?v=46"></script>
+<script src="js/effects.js?v=46"></script>
+<script src="js/net.js?v=46"></script>
+<script src="js/game.js?v=46"></script>
+<script src="js/hudedit.js?v=46"></script>
 </body>
 </html>

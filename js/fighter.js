@@ -1,6 +1,7 @@
 'use strict';
-const TEAM_COLORS = [0x2f6fd6, 0xd23b2f];
-const TEAM_CSS = ['#5aa2ff', '#ff6150'];
+// teams 0 and 1 in team modes; in free-for-all every fighter is its own team (0 = you)
+const TEAM_COLORS = [0x2f6fd6, 0xd23b2f, 0x3fa34d, 0xd9a520, 0x8a4fd0, 0xe0702a, 0x1fa6a0, 0xd14d9a];
+const TEAM_CSS = ['#5aa2ff', '#ff6150', '#6fd47c', '#f2c94c', '#b788f0', '#ff9a52', '#4fd6cf', '#ff7fc4'];
 let FIGHTER_ID = 0;
 const BASE_SPEED = 5.6;
 const CASTERS = ['fire', 'life', 'ice', 'void'];

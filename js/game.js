@@ -144,13 +144,14 @@ G.kill = (tgt, src) => {
   Sfx3(tgt, 'death');
   G.fx.burst(tgt.chest(), TEAM_COLORS[tgt.team], 18, 5);
   G.feed(src, tgt);
-  if (tgt === G.player) { G.specIdx = 0; G.msg('YOU DIED', 'Spectating your team', 2.5); }
+  if (tgt === G.player) { G.specIdx = 0; G.msg('YOU DIED', G.ffa ? 'Spectating · click for the next fighter' : 'Spectating your team', 2.5); }
 };
 
 // ---------- hitboxes ----------
 // Every fighter is a vertical capsule (a pill shape): radius 0.42, from ankles to the top of the head.
 // Knocked down, it is low and flat; mid-roll it is shorter.
 const HIT_R = 0.42;
+const MELEE_REACH = 1.2; // melee reach bonus (user: longer melee range), also stretches the swing visuals
 G.capsule = (e) => {
   let top = 1.82 * MODEL_S;
   if (e.has('down')) top = 0.55 * MODEL_S; else if (e.act && e.act.anim === 'roll') top = 1.2 * MODEL_S;
@@ -193,6 +194,7 @@ G.segCapsule = (p0, p1, c, pr) => {
 G.inSwing = (f, e, range, arc) => {
   const c = G.capsule(e);
   const d = d2(f.pos, e.pos);
+  range *= MELEE_REACH; // all melee swings and melee abilities reach a bit further
   if (d - c.r > range) return false;
   // vertical: a swing sweeps from the shins to above the head
   if (c.y1 < f.pos.y + 0.1 || c.y0 > f.pos.y + 2.4) return false;
@@ -452,9 +454,16 @@ function startMatch() {
   const names = shuffle(BOT_NAMES.slice());
   const n = G.teamSize;
   G.practice = n === 0; G.dpsLog = []; G.dpsTotal = 0;
+  G.ffa = n === 8; // free-for-all: 8 fighters, everyone on their own
   const p = new Fighter(0, G.playerWeapons.slice(), Net.isHost ? Net.name : 'You', true); G.player = p; p.human = true;
   const allies = [], enemies = [];
-  if (Net.isHost) {
+  if (G.ffa) {
+    // free-for-all: you are team 0, every friend and bot gets a team of their own
+    const fr = Net.isHost ? Net.friendFighters(true) : [];
+    enemies.push(...fr);
+    const used = new Set([G.playerWeapons[0], ...fr.map(f => f.wids[0])]);
+    for (let t = 1 + fr.length; t < 8; t++) enemies.push(new Fighter(t, botLoadout(used.size >= WEAPON_ORDER.length ? new Set() : used), names.pop(), false));
+  } else if (Net.isHost) {
     // online: friends take their team's places, bots fill the rest
     G.practice = false;
     const fr = Net.friendFighters();
@@ -475,7 +484,7 @@ function startMatch() {
   G.fighters = [p, ...allies, ...enemies];
   for (const f of G.fighters) { scene.add(f.group); if (!f.isPlayer && !f.ctrl) { if (G.practice) new Dummy(f); else new Bot(f, G.diff); } }
   $('dps').classList.toggle('hidden', !G.practice);
-  G.scores = [0, 0]; G.round = 1; Music.stop();
+  G.scores = G.ffa ? new Array(8).fill(0) : [0, 0]; G.round = 1; Music.stop();
   $('menu').classList.add('hidden'); $('endScreen').classList.add('hidden'); $('hud').classList.remove('hidden');
   buildHud();
   if (Net.isHost) Net.sendStart();
@@ -483,6 +492,17 @@ function startMatch() {
   lockPointer();
 }
 // A bot's two weapons: a main weapon nobody else on its team uses, usually paired melee + ranged.
+// Free-for-all spawns: eight places in a ring around the middle, each facing the center
+function ffaSpawns() {
+  const out = [];
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * TAU + Math.PI; let p = null;
+    for (const r of [18, 16, 20, 14, 22, 12, 10]) { const x = Math.sin(a) * r, z = Math.cos(a) * r; if (!Phys.inside(x, z, 0.5, 0.7)) { p = new V3(x, 0, z); break; } }
+    if (!p) p = new V3(Math.sin(a) * 9, 0, Math.cos(a) * 9);
+    out.push({ p, yaw: yawTo(p, new V3(0, 0, 0)) });
+  }
+  return out;
+}
 function botLoadout(used) {
   const RANGED = WEAPON_ORDER.filter(w => WEAPONS[w].atk > 10), MELEE = WEAPON_ORDER.filter(w => WEAPONS[w].atk <= 10);
   const free = WEAPON_ORDER.filter(w => !used.has(w));
@@ -500,16 +520,17 @@ function clearArena() {
 function startRound() {
   clearArena(); G.roundId++;
   const idx = [0, 0]; const ORDER = [1, 0, 2]; // 1v1 uses the middle spawn
-  for (const f of G.fighters) {
-    const sp = G.map.spawns[f.team][ORDER[idx[f.team]++]];
-    f.reset(sp, G.map.spawnYaw[f.team]);
+  const ring = G.ffa ? ffaSpawns() : null;
+  G.fighters.forEach((f, i) => {
+    if (ring) { const s = ring[i % ring.length]; f.reset(s.p, s.yaw); }
+    else { const sp = G.map.spawns[f.team][ORDER[idx[f.team]++]]; f.reset(sp, G.map.spawnYaw[f.team]); }
     if (f.ctrl) f.ctrl.reset();
-  }
+  });
   if (G.practice) { const d = G.fighters[1]; d.reset(new V3(0, 0, -11), 0); G.player.reset(new V3(0, 0, -17.5), 0); }
-  G.camYaw = G.map.spawnYaw[0]; G.camPitch = 0.22; G.playerTarget = null;
+  G.camYaw = G.ffa ? G.player.yaw : G.map.spawnYaw[0]; G.camPitch = 0.22; G.playerTarget = null;
   G.roundTime = G.ROUND_LEN; G.state = 'countdown'; G.stateT = 3.5; G.lastTick = 4;
   if (G.practice) { G.camYaw = 0; G.msg('PRACTICE', 'The dummy never fights back · potions refill · Esc to leave', 3.4); }
-  else G.msg('ROUND ' + G.round, `${G.scores[0]} - ${G.scores[1]}  ·  first to ${G.WIN_ROUNDS}`, 3.4);
+  else G.msg('ROUND ' + G.round, G.ffa ? `Free for all · last one standing · first to ${G.WIN_ROUNDS}` : `${G.scores[0]} - ${G.scores[1]}  ·  first to ${G.WIN_ROUNDS}`, 3.4);
   if (Net.isHost) Net.roundStart();
 }
 // Training dummy: stands still, faces you, heals back to full 3 s after you stop hitting it, never dies.
@@ -537,10 +558,12 @@ function endRound(winner, why) {
 }
 function showRoundEnd(winner, why) {
   Sfx.play('round', 1);
-  const name = winner === 0 ? 'YOUR TEAM' : winner === 1 ? 'ENEMY TEAM' : 'NOBODY';
-  const matchOver = G.scores[0] >= G.WIN_ROUNDS || G.scores[1] >= G.WIN_ROUNDS;
-  G.msg(winner === 0 ? 'ROUND WON' : winner === 1 ? 'ROUND LOST' : 'DRAW', `${name} takes round ${G.round}${why ? ' · ' + why : ''}`, 3.8);
-  $('bigMsg').className = winner === 0 ? 'win' : winner === 1 ? 'lose' : '';
+  const mine = G.player ? G.player.team : 0;
+  const wf = G.fighters.find(f => f.team === winner);
+  const name = G.ffa ? (winner === mine ? 'YOU' : winner >= 0 && wf ? wf.name.toUpperCase() : 'NOBODY') : winner === 0 ? 'YOUR TEAM' : winner === 1 ? 'ENEMY TEAM' : 'NOBODY';
+  const matchOver = G.scores.some(s => s >= G.WIN_ROUNDS);
+  G.msg(winner === mine ? 'ROUND WON' : winner >= 0 ? 'ROUND LOST' : 'DRAW', `${name} ${G.ffa && winner === mine ? 'take' : 'takes'} round ${G.round}${why ? ' · ' + why : ''}`, 3.8);
+  $('bigMsg').className = winner === mine ? 'win' : winner >= 0 ? 'lose' : '';
   if (matchOver) G.stateT = 3;
 }
 function endMatch() {
@@ -548,9 +571,10 @@ function endMatch() {
   if (Net.isHost) Net.matchEnd();
   $('rematchBtn').style.display = Net.isClient ? 'none' : ''; $('endWait').style.display = Net.isClient ? '' : 'none';
   if (document.pointerLockElement) document.exitPointerLock();
-  const won = G.scores[0] > G.scores[1];
+  const mine = G.player ? G.player.team : 0, top = Math.max(...G.scores.filter((s, t) => t !== mine), 0);
+  const won = G.scores[mine] > top;
   $('endTitle').textContent = won ? 'VICTORY' : 'DEFEAT'; $('endTitle').className = won ? 'win' : 'lose';
-  $('endScore').textContent = `${G.scores[0]} – ${G.scores[1]}`;
+  $('endScore').textContent = G.ffa ? `You ${G.scores[mine]} – best of the rest ${top}` : `${G.scores[0]} – ${G.scores[1]}`;
   $('endTable').innerHTML = scoreTable();
   $('endScreen').classList.remove('hidden');
   Sfx.play(won ? 'win' : 'lose', 1);
@@ -688,7 +712,7 @@ function updateCamera(dt) {
   }
   if (!f) return;
   if (!f.alive) {
-    const mates = G.fighters.filter(x => x.alive && x.team === f.team);
+    const mates = G.fighters.filter(x => x.alive && (G.ffa || x.team === f.team));
     if (mates.length) f = mates[G.specIdx % mates.length];
   }
   const zoom = f === G.player && f.aiming && f.alive ? 1 : 0;
@@ -852,9 +876,9 @@ function buildHud() {
   buildSlots();
   const mk = (team, el) => {
     el.innerHTML = '';
-    for (const f of G.fighters.filter(x => x.team === team)) {
+    for (const f of G.fighters.filter(x => G.ffa ? (team === 0 ? x === G.player : x !== G.player) : x.team === team)) {
       const r = document.createElement('div'); r.className = 'tm'; r.id = 'tm_' + f.id;
-      r.innerHTML = `<div class="tmName"><span class="tmIcon">${f.W.icon}</span> ${f.name}</div><div class="tmBar"><div class="tmFill" style="background:${TEAM_CSS[team]}"></div></div>`;
+      r.innerHTML = `<div class="tmName"><span class="tmIcon">${f.W.icon}</span> ${f.name}</div><div class="tmBar"><div class="tmFill" style="background:${TEAM_CSS[f.team]}"></div></div>`;
       el.appendChild(r);
     }
   };
@@ -913,7 +937,8 @@ function updateHud(dt) {
   $('timer').textContent = G.practice ? '∞' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
   if (G.practice) { const now = G.time; G.dpsLog = G.dpsLog.filter(x => now - x.t < 5); const s = G.dpsLog.reduce((a, x) => a + x.d, 0); const span = G.dpsLog.length ? Math.max(1, now - G.dpsLog[0].t) : 1; $('dps').innerHTML = `<b>DPS</b> ${Math.round(s / span)} · <b>last hit</b> ${G.lastHitDmg || 0} · <b>total</b> ${Math.round(G.dpsTotal)} <span class="rs">(T resets)</span>`; }
   $('timer').classList.toggle('low', t <= 20 && G.state === 'fight');
-  $('sBlue').textContent = G.scores[0]; $('sRed').textContent = G.scores[1];
+  if (G.ffa) { const mine = f.team; $('sBlue').textContent = G.scores[mine] || 0; $('sRed').textContent = Math.max(0, ...G.scores.filter((s, t) => t !== mine)); }
+  else { $('sBlue').textContent = G.scores[0]; $('sRed').textContent = G.scores[1]; }
   $('roundNum').textContent = 'ROUND ' + G.round;
   // nameplates
   for (const e of G.fighters) {
@@ -1012,14 +1037,20 @@ function update(dt) {
   for (let i = G.timers.length - 1; i >= 0; i--) { const t = G.timers[i]; if (t.round !== G.roundId) { G.timers.splice(i, 1); continue; } if (G.time >= t.t) { G.timers.splice(i, 1); t.fn(); } }
   G.fx.update(dt);
   if (G.state === 'fight') {
+    if (G.ffa) {
+      const left = G.fighters.filter(f => f.alive);
+      if (left.length <= 1) endRound(left.length ? left[0].team : -1);
+      else if (G.roundTime <= 0) { left.sort((a, b) => b.hp / b.maxHp - a.hp / a.maxHp); endRound(left[0].team, 'time up: most health left'); }
+    } else {
     const alive = [0, 1].map(t => G.fighters.filter(f => f.team === t && f.alive).length);
     if (alive[0] === 0 || alive[1] === 0) endRound(alive[0] === 0 && alive[1] === 0 ? -1 : alive[0] === 0 ? 1 : 0);
     else if (G.roundTime <= 0) {
       const hp = [0, 1].map(t => G.fighters.filter(f => f.team === t && f.alive).reduce((s, f) => s + f.hp / f.maxHp, 0));
       endRound(Math.abs(hp[0] - hp[1]) < 0.01 ? -1 : hp[0] > hp[1] ? 0 : 1, 'time up: more health left');
     }
+    }
   } else if (G.state === 'roundEnd' && G.stateT <= 0) {
-    if (G.scores[0] >= G.WIN_ROUNDS || G.scores[1] >= G.WIN_ROUNDS) endMatch();
+    if (G.scores.some(s => s >= G.WIN_ROUNDS)) endMatch();
     else { G.round++; startRound(); }
   }
   drawHitboxes();

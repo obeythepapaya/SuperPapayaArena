@@ -36,6 +36,7 @@ class Effects {
   // A melee hit's shape follows the move: a crescent that sweeps the way the weapon swings (diagonal slashes,
   // a vertical arc for overhead chops, a low arc for sweeps, a full circle for spins) or a piercing streak for stabs.
   slash(f, range, arc, color) {
+    range *= (typeof MELEE_REACH === "number" ? MELEE_REACH : 1);
     const a = f.act, an = a && a.anim, heavy = !!(a && a.kind === 'heavy');
     // which hit of a multi-hit move this is (alternates the side)
     const hi = a && a.events ? Math.max(0, a.events.filter(e => e.at <= a.t + 1e-4).length - 1) : 0;
