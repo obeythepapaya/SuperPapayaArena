@@ -1,7 +1,8 @@
 'use strict';
 // "Ruins of Hollowmere": an original circular ruin arena. Two spawn gates, a raised center dais,
 // four great pillars, two cover walls between the spawns, two broken side walls and scattered boulders.
-const ARENA_R = 29.5;
+const ARENA_R = 30.5;   // how far from the middle a fighter's center can go (the wall's inner face is at WALL_R)
+const WALL_R = 31.4;
 
 function groundH(x, z) {
   const r = Math.sqrt(x * x + z * z);
@@ -38,6 +39,7 @@ const Phys = {
   rayT(ax, az, dx, dz, maxT) {
     let best = maxT;
     for (const o of this.obstacles) {
+      if (o.h < 1) continue; // low things (pillar bases) block walking, not sight or shots
       if (o.t === 'c') {
         const fx = ax - o.x, fz = az - o.z;
         const b = fx * dx + fz * dz, c = fx * fx + fz * fz - o.r * o.r;
@@ -58,7 +60,7 @@ const Phys = {
       }
     }
     // outer wall circle (from inside)
-    const b = ax * dx + az * dz, c = ax * ax + az * az - (ARENA_R + 2.5) ** 2;
+    const b = ax * dx + az * dz, c = ax * ax + az * az - WALL_R ** 2;
     const disc = b * b - c;
     if (disc >= 0) { const t = -b + Math.sqrt(disc); if (t >= 0 && t < best) best = t; }
     return best;
@@ -74,7 +76,7 @@ const Phys = {
       if (o.t === 'c') { if (Math.hypot(x - o.x, z - o.z) < o.r + pad) return true; }
       else if (Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad) return true;
     }
-    return Math.hypot(x, z) > ARENA_R + 2.5;
+    return Math.hypot(x, z) > WALL_R;
   }
 };
 
@@ -190,17 +192,18 @@ function buildMap(scene) {
     const a = deg * Math.PI / 180; const x = Math.sin(a) * r, z = Math.cos(a) * r;
     const h = i === 2 ? 3.2 : 6.5 + Math.random();
     const base = shadowy(new THREE.Mesh(new THREE.BoxGeometry(3, 0.6, 3), darkStone)); base.position.set(x, 0.3, z); scene.add(base);
+    obstacles.push({ t: 'b', x, z, hx: 1.5, hz: 1.5, h: 0.6 }); // the square base
     const col = shadowy(new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.2, h, 14), pillarMat)); col.position.set(x, h / 2 + 0.5, z); scene.add(col);
     if (i === 2) {
       // broken top lying on the ground
       const chunk = shadowy(new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 3, 14), pillarMat));
       chunk.position.set(x + 2.6, 0.9, z - 1.2); chunk.rotation.z = Math.PI / 2; chunk.rotation.y = 0.6; scene.add(chunk);
-      obstacles.push({ t: 'c', x: x + 2.2, z: z - 0.9, r: 1.1, h: 1.8 });
-      obstacles.push({ t: 'c', x: x + 3.4, z: z - 1.8, r: 1.0, h: 1.8 });
+      // three circles along the fallen piece (it lies along (cos 0.6, -sin 0.6) through its center)
+      for (const k of [-1, 0, 1]) obstacles.push({ t: 'c', x: x + 2.6 + k * 0.825, z: z - 1.2 - k * 0.565, r: 1.05, h: 1.95 });
     } else {
       const capital = shadowy(new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.7, 2.8), darkStone)); capital.position.set(x, h + 0.85, z); scene.add(capital);
     }
-    obstacles.push({ t: 'c', x, z, r: 1.35, h: h + 0.5 });
+    obstacles.push({ t: 'c', x, z, r: 1.22, h: h + 0.5 });
   });
 
   // ---- Cover walls between the spawns ----
@@ -221,7 +224,7 @@ function buildMap(scene) {
       const len = 4.4;
       const w = shadowy(new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.4 + (sz > 0 ? 0.6 : 0), len), wallMat));
       w.position.set(sx * 18, w.geometry.parameters.height / 2, sz * 3.6); scene.add(w);
-      obstacles.push({ t: 'b', x: sx * 18, z: sz * 3.6, hx: 0.6, hz: len / 2, h: 2.4 });
+      obstacles.push({ t: 'b', x: sx * 18, z: sz * 3.6, hx: 0.6, hz: len / 2, h: w.geometry.parameters.height });
     }
   }
   // ---- Boulders ----
@@ -229,7 +232,7 @@ function buildMap(scene) {
   for (const [x, z, r] of rocks) {
     const m = shadowy(new THREE.Mesh(new THREE.DodecahedronGeometry(r * 1.15, 1), stoneMat));
     m.position.set(x, r * 0.75, z); m.scale.y = 0.85; m.rotation.set(Math.random(), Math.random(), Math.random()); scene.add(m);
-    obstacles.push({ t: 'c', x, z, r: r * 1.05, h: 1.7 });
+    obstacles.push({ t: 'c', x, z, r: r * 1.12, h: r * 1.73 }); // matches the rock's widest part and its top
   }
 
   // ---- Torches around the edge ----

@@ -174,6 +174,7 @@ const Net = (() => {
         f.faceYaw = +i.fy || 0;
         f.aimDir.set(+i.ad[0] || 0, +i.ad[1] || 0, +i.ad[2] || 1).normalize();
         f.aimPoint.set(+i.ap[0] || 0, +i.ap[1] || 0, +i.ap[2] || 0);
+        if (Array.isArray(i.gp)) { if (!f.groundAim) f.groundAim = new V3(); f.groundAim.set(+i.gp[0] || 0, +i.gp[1] || 0, +i.gp[2] || 0); }
         const t = G.fighters[i.tg]; f.softTarget = t && t.team !== f.team ? t : null;
         f.rmb = !!i.rmb;
         if (!f.W.autoFire) f.charging = !!i.ch && !f.act && !f.has('stun');
@@ -353,7 +354,7 @@ const Net = (() => {
     pending.push({ seq, x: f.moveDir.x, z: f.moveDir.z, dt: 0 });
     if (pending.length > 240) pending.shift();
     if (now - lastSend < 15) return; lastSend = now;
-    send({ t: 'i', seq, mv: [r2(f.moveDir.x), r2(f.moveDir.z)], fy: r2(f.faceYaw), ad: [r2(f.aimDir.x), r2(f.aimDir.y), r2(f.aimDir.z)], ap: [r2(f.aimPoint.x), r2(f.aimPoint.y), r2(f.aimPoint.z)], tg: f.softTarget ? G.fighters.indexOf(f.softTarget) : -1, rmb: f.rmb ? 1 : 0, lmb: lmb ? 1 : 0, ch: f.charging ? 1 : 0 });
+    send({ t: 'i', seq, mv: [r2(f.moveDir.x), r2(f.moveDir.z)], fy: r2(f.faceYaw), ad: [r2(f.aimDir.x), r2(f.aimDir.y), r2(f.aimDir.z)], ap: [r2(f.aimPoint.x), r2(f.aimPoint.y), r2(f.aimPoint.z)], gp: f.groundAim ? [r2(f.groundAim.x), r2(f.groundAim.y), r2(f.groundAim.z)] : null, tg: f.softTarget ? G.fighters.indexOf(f.softTarget) : -1, rmb: f.rmb ? 1 : 0, lmb: lmb ? 1 : 0, ch: f.charging ? 1 : 0 });
   };
   document.addEventListener('visibilitychange', () => { if (document.hidden && N.isClient && me) send({ t: 'i', seq: ++seq, mv: [0, 0], fy: r2(me.faceYaw), ad: [0, 0, 1], ap: [0, 0, 0], tg: -1, rmb: 0, lmb: 0, ch: 0 }); });
 

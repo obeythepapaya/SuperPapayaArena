@@ -674,6 +674,16 @@ function computeAim(f) {
     const ang = c.sub(o).normalize().angleTo(cd);
     if (ang < bestAng && !e.has('vanish')) { bestAng = ang; best = e; }
   }
+  // placed skills land where the crosshair meets the ground, even behind a wall (kept inside the arena)
+  if (!f.groundAim) f.groundAim = new V3();
+  const g = f.groundAim;
+  if (cd.y < -0.01) {
+    let y = 0;
+    for (let i = 0; i < 3; i++) { const t = (o.y - y) / -cd.y; g.set(o.x + cd.x * t, 0, o.z + cd.z * t); y = groundH(g.x, g.z); }
+    g.y = y;
+  } else { const hh = Math.hypot(cd.x, cd.z) || 1; g.set(o.x + cd.x / hh * 60, 0, o.z + cd.z / hh * 60); }
+  const gr = Math.hypot(g.x, g.z), glim = ARENA_R - 0.3;
+  if (gr > glim) { g.x *= glim / gr; g.z *= glim / gr; g.y = groundH(g.x, g.z); }
   const pt = o.addScaledVector(cd, tEnd);
   f.aimPoint.copy(pt);
   const ch = f.chest();
@@ -694,7 +704,7 @@ Fighter.prototype.getAimTarget = function (maxD) {
   return t && t.alive && d2(this.pos, t.pos) <= maxD ? t : null;
 };
 Fighter.prototype.getAimGround = function (maxD) {
-  const p = this.isPlayer ? this.aimPoint.clone() : (this.ctrl && this.ctrl.target ? this.ctrl.target.pos.clone().addScaledVector(this.ctrl.target.velEst, 0.5) : this.pos.clone().addScaledVector(fwd(this.yaw), 8));
+  const p = this.isPlayer ? (this.groundAim || this.aimPoint).clone() : (this.ctrl && this.ctrl.target ? this.ctrl.target.pos.clone().addScaledVector(this.ctrl.target.velEst, 0.5) : this.pos.clone().addScaledVector(fwd(this.yaw), 8));
   const dx = p.x - this.pos.x, dz = p.z - this.pos.z; const d = Math.hypot(dx, dz);
   if (d > maxD) { p.x = this.pos.x + dx / d * maxD; p.z = this.pos.z + dz / d * maxD; }
   Phys.resolve(p, 0.1); p.y = groundH(p.x, p.z);
