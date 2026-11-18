@@ -62,15 +62,46 @@ class Fighter {
 
     const g = this.group = new THREE.Group(); g.scale.setScalar(MODEL_S);
     const body = this.body = new THREE.Group(); g.add(body);
-    // legs
-    const mkLeg = (x) => { const p = new THREE.Group(); p.position.set(x, 0.95, 0); const l = box(0.2, 0.55, 0.22, leather); l.position.y = -0.27; p.add(l); const sh = box(0.21, 0.42, 0.24, dark); sh.position.y = -0.72; p.add(sh); const boot = box(0.22, 0.12, 0.32, dark); boot.position.set(0, -0.9, 0.05); p.add(boot); body.add(p); return p; };
-    this.legL = mkLeg(0.14); this.legR = mkLeg(-0.14);
-    // torso
-    const hips = box(0.48, 0.2, 0.3, leather); hips.position.y = 1.0; body.add(hips);
-    const torso = box(0.56, 0.62, 0.32, cloth); torso.position.y = 1.38; body.add(torso);
-    const plate = box(0.5, 0.44, 0.08, armor); plate.position.set(0, 1.45, 0.17); body.add(plate);
-    const belt = box(0.58, 0.08, 0.34, leather); belt.position.y = 1.1; body.add(belt);
-    const buckle = box(0.1, 0.08, 0.05, gold); buckle.position.set(0, 1.1, 0.18); body.add(buckle);
+    // ---- a human figure: rounded, tapered parts; the joints (hips, shoulders, neck) are where the animations expect them ----
+    const HEAVY = ['sns', 'hammer', 'gaxe', 'gsword', 'flail', 'spear'].includes(this.wid);
+    const CASTER = CASTERS.includes(this.wid);
+    const cloth2 = stdMat(new THREE.Color(tc).multiplyScalar(0.55).getHex(), { roughness: 0.9 }); // darker team cloth (trousers, sleeves)
+    this.mats.push(cloth2);
+    const M = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.position.set(x || 0, y || 0, z || 0); return m; };
+    const taper = (r0, r1, h, mat, seg) => new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, seg || 12), mat);
+    const ball = (r, mat) => new THREE.Mesh(new THREE.SphereGeometry(r, 12, 9), mat);
+    const put = (m, parent, x, y, z) => { m.castShadow = true; m.position.set(x || 0, y || 0, z || 0); parent.add(m); return m; };
+    // legs: thigh, knee, shin in a boot, foot
+    const mkLeg = (x) => {
+      const p = new THREE.Group(); p.position.set(x, 0.95, 0);
+      put(taper(0.105, 0.078, 0.46, cloth2), p, 0, -0.23, 0);
+      put(ball(0.075, HEAVY ? armor : cloth2), p, 0, -0.47, 0.01);
+      put(taper(0.075, 0.06, 0.28, cloth2), p, 0, -0.6, 0);
+      const boot = put(taper(0.082, 0.075, 0.26, dark), p, 0, -0.76, 0);
+      put(new THREE.Mesh(new THREE.TorusGeometry(0.083, 0.015, 6, 14), leather), boot, 0, 0.12, 0).rotation.x = Math.PI / 2; // boot cuff
+      const foot = put(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), dark), p, 0, -0.9, 0.07); foot.scale.set(0.95, 0.55, 1.75);
+      if (HEAVY) { const kp = put(new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8, 0, Math.PI), armor), p, 0, -0.47, 0.02); kp.rotation.y = -Math.PI / 2 + Math.PI / 2; }
+      body.add(p); return p;
+    };
+    this.legL = mkLeg(0.12); this.legR = mkLeg(-0.12);
+    // pelvis and a V-shaped torso (wide chest, narrow waist)
+    const pelvis = put(taper(0.2, 0.17, 0.2, cloth2), body, 0, 1.0, 0); pelvis.scale.z = 0.7;
+    const torso = put(taper(0.25, 0.185, 0.56, cloth, 16), body, 0, 1.38, 0); torso.scale.z = 0.66;
+    const chestTop = put(ball(0.25, cloth), body, 0, 1.62, 0); chestTop.scale.set(1, 0.38, 0.66); // rounded shoulders line
+    if (HEAVY) { // breastplate: a curved shell over the front, with a center ridge
+      const bp = put(new THREE.Mesh(new THREE.CylinderGeometry(0.265, 0.2, 0.46, 16, 1, true, -Math.PI / 2, Math.PI), armor), body, 0, 1.42, 0.005); bp.scale.z = 0.72; bp.material.side = THREE.DoubleSide;
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 0.03), armor), body, 0, 1.42, 0.19);
+    } else if (!CASTER) { // leather jerkin with straps
+      const j = put(taper(0.262, 0.2, 0.5, leather, 16), body, 0, 1.39, 0); j.scale.z = 0.7;
+      const strap = put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 0.02), dark), body, 0, 1.4, 0.18); strap.rotation.z = 0.6;
+    }
+    if (CASTER) { // robe skirt down past the knees
+      const robe = put(new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.33, 0.7, 16, 1, true), cloth), body, 0, 0.78, 0); robe.scale.z = 0.8; robe.material.side = THREE.DoubleSide;
+    } else { // tabard in team color hanging front and back
+      for (const z of [0.15, -0.15]) { const t = put(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.42, 0.015), cloth), body, 0, 0.86, z); t.rotation.x = z > 0 ? -0.06 : 0.06; }
+    }
+    const belt = put(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 20), leather), body, 0, 1.1, 0); belt.rotation.x = Math.PI / 2; belt.scale.y = 0.72;
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.07, 0.03), gold), body, 0, 1.1, 0.15);
     // health potions on the belt: one bottle disappears per potion drunk
     const glass = new THREE.MeshStandardMaterial({ color: 0xbfe6ff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.45 });
     const brew = new THREE.MeshStandardMaterial({ color: 0xd82a2a, emissive: 0x7a0a0a, roughness: 0.3, transparent: true });
@@ -84,25 +115,58 @@ class Fighter {
       const c = new THREE.Mesh(new THREE.CylinderGeometry(0.022 * s, 0.022 * s, 0.03 * s, 8), cork); c.position.y = 0.18 * s; p.add(c);
       return p;
     };
-    this.beltPots = [[0.31, 0.96, 0.06], [0.31, 0.96, -0.1], [-0.31, 0.96, -0.08]].map(([x, y, z]) => { const p = makePot(1); p.position.set(x, y, z); body.add(p); return p; });
+    this.beltPots = [[0.21, 0.98, 0.1], [0.24, 0.98, -0.04], [-0.23, 0.98, -0.06]].map(([x, y, z]) => { const p = makePot(0.9); p.position.set(x, y, z); body.add(p); return p; });
     this.handPot = makePot(1.3); this.handPot.visible = false;
-    for (const sx of [-1, 1]) { const pad = box(0.24, 0.12, 0.34, armor); pad.position.set(sx * 0.34, 1.68, 0); pad.rotation.z = -sx * 0.25; body.add(pad); }
+    // shoulder guards: rounded plates for heavy weapons, leather caps otherwise
+    for (const sx of [-1, 1]) {
+      const pad = put(new THREE.Mesh(new THREE.SphereGeometry(HEAVY ? 0.13 : 0.1, 12, 8, 0, TAU, 0, Math.PI / 2), HEAVY ? armor : CASTER ? cloth : leather), body, sx * 0.3, 1.6, 0);
+      pad.rotation.z = -sx * 0.45; pad.scale.set(1.1, HEAVY ? 0.8 : 0.6, 1.05);
+      if (HEAVY) put(new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.012, 5, 16, Math.PI), gold), pad, 0, 0, 0).rotation.x = Math.PI / 2;
+    }
     // cape
-    const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 1.0, 1, 4), new THREE.MeshStandardMaterial({ color: tc, side: THREE.DoubleSide, roughness: 0.85, transparent: true }));
+    const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 1.0, 1, 4), new THREE.MeshStandardMaterial({ color: tc, side: THREE.DoubleSide, roughness: 0.85, transparent: true }));
     this.mats.push(cape.material);
-    cape.position.set(0, 1.2, -0.18); cape.castShadow = true; body.add(cape); this.cape = cape;
-    // head
-    const head = this.head = new THREE.Group(); head.position.y = 1.83; body.add(head);
-    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), skin); skull.castShadow = true; head.add(skull);
-    const helm = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 8, 0, TAU, 0, Math.PI * 0.55), CASTERS.includes(this.wid) ? cloth : armor); helm.position.y = 0.02; helm.castShadow = true; head.add(helm);
-    if (CASTERS.includes(this.wid)) { const hood = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.32, 10), cloth); hood.position.y = 0.2; hood.rotation.x = -0.3; head.add(hood); }
-    else if (this.wid === 'daggers') { const mask = box(0.3, 0.1, 0.06, dark); mask.position.set(0, -0.06, 0.15); head.add(mask); }
-    else { const nose = box(0.04, 0.16, 0.05, armor); nose.position.set(0, -0.02, 0.18); head.add(nose); }
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 4), eyeMat); e.position.set(sx * 0.065, 0.02, 0.155); head.add(e); }
-    // arms
-    const mkArm = (x) => { const p = new THREE.Group(); p.position.set(x, 1.6, 0); const up = box(0.15, 0.32, 0.15, cloth); up.position.y = -0.16; p.add(up); const fore = box(0.14, 0.3, 0.14, leather); fore.position.y = -0.45; p.add(fore); const hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), skin); hand.position.y = -0.63; p.add(hand); const anchor = new THREE.Group(); anchor.position.y = -0.63; p.add(anchor); p.userData.anchor = anchor; body.add(p); return p; };
-    this.armL = mkArm(0.36); this.armR = mkArm(-0.36);
+    cape.position.set(0, 1.18, -0.17); cape.castShadow = true; body.add(cape); this.cape = cape;
+    // neck and head (smaller, oval, with jaw, nose and ears)
+    put(taper(0.055, 0.065, 0.14, skin), body, 0, 1.72, 0);
+    const head = this.head = new THREE.Group(); head.position.y = 1.86; body.add(head);
+    const skull = put(ball(0.12, skin), head, 0, 0.02, 0); skull.scale.set(0.92, 1.08, 1.0);
+    const jaw = put(ball(0.09, skin), head, 0, -0.06, 0.025); jaw.scale.set(0.95, 0.8, 1.0);
+    put(new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.06, 6), skin), head, 0, -0.005, 0.125).rotation.x = Math.PI / 2;
+    for (const sx of [-1, 1]) { const ear = put(ball(0.03, skin), head, sx * 0.11, 0.0, 0); ear.scale.set(0.5, 1, 0.8); }
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x15110d });
+    for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 4), eyeMat); e.position.set(sx * 0.042, 0.03, 0.108); head.add(e); }
+    const brow = put(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.018, 0.03), dark), head, 0, 0.058, 0.1);
+    brow.rotation.x = 0.2;
+    const hair = put(new THREE.Mesh(new THREE.SphereGeometry(0.127, 12, 8, 0, TAU, 0, Math.PI * 0.5), dark), head, 0, 0.03, -0.008); hair.scale.set(0.95, 1.05, 1.02);
+    if (CASTER) { // deep hood
+      const hood = put(new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10, 0, TAU, 0, Math.PI * 0.62), cloth), head, 0, 0.02, -0.02); hood.scale.set(1, 1.12, 1.08);
+      const tip = put(new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.18, 10), cloth), head, 0, 0.1, -0.13); tip.rotation.x = -1.1;
+    } else if (HEAVY) { // open-faced helm with a nose guard and rim
+      const helm = put(new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 8, 0, TAU, 0, Math.PI * 0.52), armor), head, 0, 0.035, 0);
+      put(new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.014, 6, 24), armor), helm, 0, 0, 0).rotation.x = Math.PI / 2;
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.11, 0.025), armor), head, 0, 0.0, 0.14);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.12, 0.22), gold), helm, 0, 0.12, 0); // crest
+    } else if (this.wid === 'daggers') { // hood and face mask
+      const hood = put(new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10, 0, TAU, 0, Math.PI * 0.6), dark), head, 0, 0.02, -0.015); hood.scale.set(1, 1.1, 1.06);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.05), dark), head, 0, -0.055, 0.1);
+    } else { // leather cap
+      const cap = put(new THREE.Mesh(new THREE.SphereGeometry(0.135, 14, 8, 0, TAU, 0, Math.PI * 0.45), leather), head, 0, 0.04, -0.005);
+      put(new THREE.Mesh(new THREE.TorusGeometry(0.133, 0.013, 6, 24), leather), cap, 0, 0.0, 0).rotation.x = Math.PI / 2;
+    }
+    // arms: shoulder, upper arm, elbow, forearm with bracer, hand with thumb (the hand stays at -0.63 for the grips)
+    const mkArm = (x) => {
+      const p = new THREE.Group(); p.position.set(x, 1.6, 0);
+      put(ball(0.075, CASTER ? cloth : cloth2), p, 0, -0.01, 0);
+      put(taper(0.07, 0.058, 0.3, CASTER ? cloth : cloth2), p, 0, -0.16, 0);
+      put(ball(0.058, CASTER ? cloth : cloth2), p, 0, -0.32, 0);
+      put(taper(0.056, 0.045, 0.26, skin), p, 0, -0.45, 0);
+      put(taper(0.062, 0.052, 0.17, HEAVY ? armor : leather), p, 0, -0.49, 0); // bracer / gauntlet cuff
+      const hand = put(new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.09, 0.045), HEAVY ? armor : skin), p, 0, -0.62, 0.005);
+      hand.geometry.translate(0, 0, 0); put(ball(0.022, HEAVY ? armor : skin), hand, (x > 0 ? -1 : 1) * 0.04, 0.01, 0.025); // thumb
+      const anchor = new THREE.Group(); anchor.position.y = -0.63; p.add(anchor); p.userData.anchor = anchor; body.add(p); return p;
+    };
+    this.armL = mkArm(0.33); this.armR = mkArm(-0.33);
     this.armL.userData.anchor.add(this.handPot); this.handPot.position.set(0, -0.02, 0.08); this.handPot.rotation.x = Math.PI;
     // weapons (both are built; only the one in hand is shown)
     const hold = this.hold = new THREE.Group(); hold.position.set(-0.08, 1.2, 0.32); this.body.add(hold);
@@ -163,6 +227,7 @@ class Fighter {
     this.vblade = ws.vblade; this.chain = ws.chain || null; this.grips = ws.grips || null; this.holdOff = ws.holdOff || null; this.holdTilt = ws.holdTilt || 0;
     this.twohand = ws.twohand; this.blade = ws.blade; this.shield = ws.shield; this.muzzle = ws.muzzle; this.gemGlow = ws.gemGlow;
     this.combo = 0;
+    if (this === G.player && typeof buildSlots === 'function' && document.getElementById('slots')) buildSlots();
   }
   trySwap() {
     if (this.wids.length < 2 || !this.alive || this.has('stun') || G.state !== 'fight' || this.swapCd > 0) return false;
@@ -478,7 +543,7 @@ class Fighter {
 
   animate(dt) {
     const g = this.group; g.position.copy(this.pos); g.rotation.set(0, this.yaw, 0);
-    const b = this.body; b.rotation.set(0, 0, 0); b.position.set(0, 0, 0);
+    const b = this.body; b.rotation.set(0, 0, 0); b.position.set(0, 0, 0); b.scale.set(1, 1, 1); this._roll = null;
     const speed = Math.min(8, this.velEst.length());
     // walk cycle (forward/back relative to facing)
     const along = this.velEst.x * Math.sin(this.yaw) + this.velEst.z * Math.cos(this.yaw);
@@ -550,8 +615,12 @@ class Fighter {
           const fa = dd.x * Math.sin(this.yaw) + dd.z * Math.cos(this.yaw);
           const sa = dd.x * -Math.cos(this.yaw) + dd.z * Math.sin(this.yaw);
           const s = Math.sin(p * Math.PI);
-          b.position.y = -s * 0.5; b.rotation.x = fa * s * 1.15; b.rotation.z = -sa * s * 1.0;
-          this.legL.rotation.x = this.legR.rotation.x = -1.3 * s; aR.x = aL.x = -1.0 * s;
+          // a tucked somersault toward the roll direction (sideways and backward rolls too); applied after the smoothing below
+          let k = clamp(p / 0.92, 0, 1); k = k * k * (3 - 2 * k);
+          const dl = Math.hypot(fa, sa) || 1;
+          this._roll = { ax: fa / dl, az: sa / dl, ang: TAU * k, s };
+          this.legL.rotation.x = this.legR.rotation.x = -2.5 * s; aR.x = aL.x = -2.2 * s; aR.z = 0.5 * s; aL.z = -0.5 * s;
+          this.head.rotation.x = 0.5 * s;
           break;
         }
         case 'dash': b.rotation.x = 0.5; aR.x = aL.x = 0.6; break;
@@ -561,7 +630,7 @@ class Fighter {
         case 'swap': aR.x = -2.2 * Math.sin(p * Math.PI); aR.z = 0.5 * Math.sin(p * Math.PI); if (this.twohand) this.hold.position.y = 1.2 + Math.sin(p * Math.PI) * 0.4; break;
       }
     }
-    if (!a || a.anim !== 'drink') this.head.rotation.x = 0;
+    if (!a || (a.anim !== 'drink' && a.anim !== 'roll')) this.head.rotation.x = 0;
     if (this.blocking) {
       if (this.shield) { aL.x = -1.35; aL.z = -0.45; }
       else if (this.twohand) { this.hold.rotation.z = 1.3; this.hold.position.set(0, 1.45, 0.4); aR.x = -1.4; aL.x = -1.4; }
@@ -600,6 +669,15 @@ class Fighter {
       const [o, k] = this._joints[i]; const tgt = o[k], prev = this._prev[i];
       const v = o instanceof THREE.Euler ? prev + wrapAngle(tgt - prev) * kk : lerp(prev, tgt, kk);
       o[k] = v; this._prev[i] = v;
+    }
+    if (this._roll) { // the somersault: turn the curled-up body around its middle, straight from the timeline (no smoothing)
+      const r = this._roll, sq = 1 - 0.5 * r.s;
+      const q = Fighter._rq || (Fighter._rq = new THREE.Quaternion()), ax = Fighter._ra || (Fighter._ra = new THREE.Vector3());
+      q.setFromAxisAngle(ax.set(r.ax, 0, r.az), r.ang);
+      b.quaternion.copy(q); b.scale.set(1, sq, 1);
+      const P = new THREE.Vector3(0, 0.93 * sq, 0), RP = P.clone().applyQuaternion(q);
+      b.position.set(P.x - RP.x, P.y - RP.y, P.z - RP.z);
+      this._prev[12] = b.rotation.x; this._prev[13] = b.rotation.y; this._prev[14] = b.rotation.z; this._prev[19] = b.position.y; this._prev[20] = b.position.z;
     }
     this.reachGrips();
     this.group.updateMatrixWorld(true);

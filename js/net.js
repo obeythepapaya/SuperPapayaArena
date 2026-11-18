@@ -361,7 +361,7 @@ const Net = (() => {
       if (!s[5] && f.alive) { f.alive = false; f.deathT = 0; f.act = null; f.healing = null; }
       f.net = { x: s[0], y: s[1], z: s[2], yaw: s[3], vx: s[13], vz: s[14], at: now };
       f.hp = s[4];
-      if (s[6] !== f.wi) { f.applyWeapon(s[6]); if (f === me) buildSlots(); }
+      if (s[6] !== f.wi) { const was = f.alive && G.state === 'fight'; f.applyWeapon(s[6]); if (f === me && was) G.onSwap(); }
       const fl = s[7];
       f.blocking = !!(fl & 1); f.aiming = !!(fl & 2); f.channeling = !!(fl & 4); if (f !== me) f.charging = !!(fl & 8); f.netLock = !!(fl & 16);
       f.stamina = s[8]; f.mana = s[9]; f.potions = s[10];

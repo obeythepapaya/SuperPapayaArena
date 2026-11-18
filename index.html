@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -160,6 +160,12 @@
   .mpSw { cursor:pointer; background:rgba(40,30,20,.9); color:var(--ink); border:1px solid rgba(232,198,106,.35); border-radius:4px; padding:0 6px; margin-left:4px; }
   #mpMsg { color:#ff9a7a; font-size:13px; min-height:0; }
   #mpWait, #endWait { color:var(--dim); font-size:14px; margin-top:14px; }
+  #swapPop { position:fixed; left:-999px; top:0; pointer-events:none; display:flex; flex-direction:column; align-items:center; opacity:0; transform:translate(-50%,-50%); }
+  #swapPop img { width:84px; height:84px; filter:drop-shadow(0 0 10px rgba(255,200,110,.55)) drop-shadow(0 2px 2px #000); }
+  #swapPop .spIc { font-size:48px; }
+  #swapPop .spNm { font-family:Cinzel,serif; font-weight:700; font-size:13px; color:var(--gold); text-shadow:0 1px 3px #000, 0 0 8px #000; margin-top:-6px; white-space:nowrap; }
+  #swapPop.on { animation:swapPop 1.2s ease-out forwards; }
+  @keyframes swapPop { 0% { opacity:0; transform:translate(-50%,-50%) scale(.55); } 14% { opacity:1; transform:translate(-50%,-50%) scale(1.12); } 26% { transform:translate(-50%,-50%) scale(1); } 70% { opacity:1; transform:translate(-50%,-60%) scale(1); } 100% { opacity:0; transform:translate(-50%,-85%) scale(.95); } }
   .hint { color:var(--dim); font-size:12px; margin-bottom:10px; }
   .modeBtn { font-family:Cinzel,serif; font-weight:700; background:rgba(40,30,20,.9); color:var(--ink); border:1px solid rgba(232,198,106,.35); border-radius:6px; padding:8px 16px; cursor:pointer; font-size:14px; }
   .modeBtn.sel { background:var(--gold2); color:#1a120a; border-color:var(--gold); }
@@ -224,7 +230,7 @@
   <h1>SUPER PAPAYA ARENA</h1>
   <div class="tag">Arena Â· Ruins of Hollowmere Â· first to 3 rounds</div>
   <div id="picks"><div class="pick" id="pick0"></div><div class="pick" id="pick1"></div></div>
-  <div class="hint">Pick two weapons: click a slot above, then a weapon card. Swap between them in a fight with 1 / 2 or the mouse wheel.</div>
+  <div class="hint">Pick two weapons: click a slot above, then a weapon card. Switch between them in a fight with 1 or the mouse wheel.</div>
   <div class="hint">Then choose <b>3 of 6 skills</b> for each weapon below. The order you pick them sets Q, R and F; click a chosen skill again to drop it.</div>
   <div id="skills"></div>
   <div id="classGrid"></div>
@@ -256,7 +262,7 @@
   <div class="controls">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;Â·&nbsp; <kbd>Mouse</kbd> look &nbsp;Â·&nbsp; <kbd>Left click</kbd> light attack (hold for a charged heavy) &nbsp;Â·&nbsp;
     <kbd>Right click</kbd> block / aim / flamethrower &nbsp;Â·&nbsp; <kbd>Shift</kbd> dodge roll (stamina) &nbsp;Â·&nbsp; <kbd>Space</kbd> jump &nbsp;Â·&nbsp;
-    <kbd>Q</kbd><kbd>R</kbd><kbd>F</kbd> abilities &nbsp;Â·&nbsp; <kbd>1</kbd><kbd>2</kbd> / <kbd>Wheel</kbd> swap weapon &nbsp;Â·&nbsp; <kbd>E</kbd> health potion (3 per round) &nbsp;Â·&nbsp; <kbd>Tab</kbd> scoreboard &nbsp;Â·&nbsp; <kbd>H</kbd> show hitboxes &nbsp;Â·&nbsp; <kbd>Esc</kbd> pause
+    <kbd>Q</kbd><kbd>R</kbd><kbd>F</kbd> abilities &nbsp;Â·&nbsp; <kbd>1</kbd> / <kbd>Wheel</kbd> swap weapon &nbsp;Â·&nbsp; <kbd>E</kbd> health potion (3 per round) &nbsp;Â·&nbsp; <kbd>Tab</kbd> scoreboard &nbsp;Â·&nbsp; <kbd>H</kbd> show hitboxes &nbsp;Â·&nbsp; <kbd>Esc</kbd> pause
     <div class="note">Dodging gives a moment of invulnerability. Blocking from the front drains stamina; heavy attacks drain it faster. Run out and your guard breaks, and you are exhausted (slower, no dodge or block) until it recovers.
     Melee hits stagger light attacks, but heavy attacks and charges have grit and can't be interrupted. Repeated stuns and roots get shorter, then the target is briefly immune. Daggers deal extra damage from behind.</div>
   </div>
@@ -274,6 +280,7 @@
   <div id="cross"></div><div id="hitmark"></div>
   <div id="charge"><div id="chargeFill"></div></div>
   <div id="reload"><div id="reloadFill"></div></div>
+  <div id="swapPop"></div>
   <div id="center"><div id="bigMsg"></div><div id="subMsg"></div></div>
   <div id="feed"></div>
   <div id="bottom">
@@ -312,19 +319,19 @@
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/util.js?v=39"></script>
-<script src="js/sound.js?v=39"></script>
-<script src="js/music.js?v=39"></script>
-<script src="js/map.js?v=39"></script>
-<script src="js/weapons.js?v=39"></script>
-<script src="js/weapons2.js?v=39"></script>
-<script src="js/weapons3.js?v=39"></script>
-<script src="js/fighter.js?v=39"></script>
-<script src="js/models2.js?v=39"></script>
-<script src="js/ai.js?v=39"></script>
-<script src="js/effects.js?v=39"></script>
-<script src="js/net.js?v=39"></script>
-<script src="js/game.js?v=39"></script>
-<script src="js/hudedit.js?v=39"></script>
+<script src="js/util.js?v=42"></script>
+<script src="js/sound.js?v=42"></script>
+<script src="js/music.js?v=42"></script>
+<script src="js/map.js?v=42"></script>
+<script src="js/weapons.js?v=42"></script>
+<script src="js/weapons2.js?v=42"></script>
+<script src="js/weapons3.js?v=42"></script>
+<script src="js/fighter.js?v=42"></script>
+<script src="js/models2.js?v=42"></script>
+<script src="js/ai.js?v=42"></script>
+<script src="js/effects.js?v=42"></script>
+<script src="js/net.js?v=42"></script>
+<script src="js/game.js?v=42"></script>
+<script src="js/hudedit.js?v=42"></script>
 </body>
 </html>

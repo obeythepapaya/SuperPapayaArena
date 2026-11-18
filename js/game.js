@@ -584,8 +584,7 @@ function setupInput() {
     else if (e.code === 'KeyF') f.press('ability', 'f');
     else if (e.code === 'KeyE') f.press('potion');
     else if (e.code === 'KeyT' && G.practice) { G.dpsLog = []; G.dpsTotal = 0; G.lastHitDmg = 0; }
-    else if (e.code === 'Digit1' && f.wi !== 0) f.press('swap');
-    else if (e.code === 'Digit2' && f.wi !== 1) f.press('swap');
+    else if (e.code === 'Digit1') f.press('swap'); // 1 = switch to your other weapon
     else if (e.code === 'Space') { if (f.tryJump()) Sfx3(f, 'jump'); }
     else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') { f.press('dodge', (f.moveDir.lengthSq() > 0.01 ? f.moveDir : fwd(G.camYaw).negate()).clone()); }
   });
@@ -787,7 +786,53 @@ function updateTargetFrame(f) {
 }
 
 // The weapon in hand changed: redraw the ability slots and the weapon pair
-G.onSwap = () => buildSlots();
+G.onSwap = () => showSwapPop();
+// Weapon pictures: each weapon model is drawn once into a small image (cached), for the swap pop-up
+const WeaponPics = (() => {
+  let r = null, sc = null, cam = null; const cache = {};
+  function get(f) {
+    const w = f.wid; if (w in cache) return cache[w];
+    try {
+      if (!r) {
+        r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); r.setSize(160, 160); r.outputEncoding = THREE.sRGBEncoding;
+        sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x554433, 1.3));
+        const d = new THREE.DirectionalLight(0xffffff, 1.3); d.position.set(2, 3, 5); sc.add(d);
+        cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50); cam.position.set(0, 0, 10);
+      }
+      // each piece (a dagger, a sword, a shield) is laid diagonally along its longest side, side by side
+      const outer = new THREE.Group(); let n = 0;
+      for (const root of f.wsets[w].roots) {
+        const c = root.clone(true); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1); c.visible = true; c.updateMatrixWorld(true);
+        const bb = new THREE.Box3().setFromObject(c), sz = bb.getSize(new V3()); if (sz.lengthSq() < 1e-6) continue;
+        const ax = sz.x >= sz.y && sz.x >= sz.z ? new V3(1, 0, 0) : sz.y >= sz.z ? new V3(0, 1, 0) : new V3(0, 0, 1);
+        const piv = new THREE.Group(); piv.add(c); c.position.copy(bb.getCenter(new V3()).negate());
+        piv.quaternion.setFromUnitVectors(ax, new V3(1, 1, 0.2).normalize());
+        piv.position.set(-n * 0.26, n * 0.26, 0); outer.add(piv); n++;
+      }
+      sc.add(outer); outer.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(outer), ctr = box.getCenter(new V3()), sz = box.getSize(new V3());
+      outer.position.sub(ctr);
+      const h = Math.max(sz.x, sz.y) * 0.56; cam.left = -h; cam.right = h; cam.top = h; cam.bottom = -h; cam.updateProjectionMatrix();
+      r.render(sc, cam); cache[w] = r.domElement.toDataURL(); sc.remove(outer);
+    } catch (e) { cache[w] = null; }
+    return cache[w];
+  }
+  return { get };
+})();
+// Swapping weapons: a picture of the weapon now in hand pops up beside your character and fades
+function showSwapPop() {
+  const f = G.player, el = $('swapPop'); if (!f || !el) return;
+  const pic = WeaponPics.get(f);
+  el.innerHTML = (pic ? `<img src="${pic}" alt="">` : `<span class="spIc">${f.W.icon}</span>`) + `<span class="spNm">${f.W.icon} ${f.W.name}</span>`;
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  G.swapPopT = 1.2; placeSwapPop();
+}
+function placeSwapPop() {
+  const f = G.player, el = $('swapPop'); if (!f || !el) return;
+  const rt = new V3().setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize(); // the screen's right
+  const s = screenOf(f.chest().addScaledVector(rt, 0.75).add(new V3(0, 0.25, 0)));
+  if (s) { el.style.left = s.x + 'px'; el.style.top = s.y + 'px'; }
+}
 function buildSlots() {
   const f = G.player, W = f.W;
   $('weapName').innerHTML = f.wids.map((w, i) => `<div class="wslot${i === f.wi ? ' on' : ''}"><span class="wk">${i + 1}</span>${WEAPONS[w].icon} ${WEAPONS[w].name}</div>`).join('');
@@ -886,6 +931,7 @@ function updateHud(dt) {
     fxRender(el.querySelector('.plSt'), e, 'small');
     el.classList.toggle('targeted', e === f.softTarget); el.querySelector('.plIcon').textContent = e.W.icon;
   }
+  if (G.swapPopT > 0) { G.swapPopT -= dt; placeSwapPop(); }
   // floating numbers
   for (let i = G.floats.length - 1; i >= 0; i--) {
     const x = G.floats[i]; x.t += dt; x.pos.y += dt * 1.1;
