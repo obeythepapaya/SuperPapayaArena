@@ -145,7 +145,7 @@
   .pick { font-family:Cinzel,serif; font-weight:700; background:rgba(40,30,20,.9); border:1px solid rgba(232,198,106,.3); border-radius:8px; padding:8px 16px; cursor:pointer; min-width:210px; text-align:center; }
   .pick.active { border-color:var(--gold); box-shadow:0 0 0 2px rgba(232,198,106,.35); }
   .pk { display:inline-block; width:20px; height:20px; border-radius:50%; background:var(--gold2); color:#1a120a; font-size:12px; line-height:20px; margin-right:4px; }
-  #mp { margin:6px 0 4px; padding:12px 18px 14px; border:1px solid rgba(232,198,106,.3); border-radius:10px; background:rgba(18,14,10,.6); display:flex; flex-direction:column; align-items:center; gap:10px; max-width:760px; width:100%; }
+  #mp { max-width:960px !important; margin:6px 0 4px; padding:12px 18px 14px; border:1px solid rgba(232,198,106,.3); border-radius:10px; background:rgba(18,14,10,.6); display:flex; flex-direction:column; align-items:center; gap:10px; max-width:760px; width:100%; }
   .mpHead { font-family:Cinzel,serif; font-weight:700; color:var(--gold); letter-spacing:.12em; text-transform:uppercase; font-size:15px; }
   .mpRow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
   #mp input { font-family:Inter,sans-serif; font-size:15px; background:rgba(10,8,6,.9); color:var(--ink); border:1px solid rgba(232,198,106,.35); border-radius:6px; padding:7px 10px; width:150px; user-select:text; }
@@ -179,7 +179,19 @@
   .mpEmpty { color:var(--dim); font-size:13px; text-align:center; padding:6px; }
   .mpWarn { color:#e8b48a; font-size:12.5px; max-width:680px; text-align:center; margin:8px 0 2px; line-height:1.4; }
   .mpChk { color:var(--dim); font-size:12.5px; display:flex; gap:8px; align-items:center; max-width:640px; }
-  #mpStartBtn { margin-top:6px; }
+  #mpStartBtn { margin-top:0; }
+  #mpLobby { width:100%; display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .lobbyMain { display:flex; gap:14px; width:100%; align-items:stretch; flex-wrap:wrap; justify-content:center; }
+  .lobbyMain #mpPlayers { margin:0; flex-direction:column; flex:0 0 auto; }
+  #mpChat { flex:1; min-width:260px; display:flex; flex-direction:column; background:rgba(0,0,0,.3); border:1px solid rgba(232,198,106,.25); border-radius:6px; }
+  #chatLog { height:160px; overflow-y:auto; font-size:13px; padding:6px 9px; user-select:text; line-height:1.45; }
+  #chatLog .chatL b { color:var(--gold); } #chatLog .chatL.sys { color:var(--dim); font-style:italic; }
+  .chatIn { display:flex; gap:6px; padding:6px; border-top:1px solid rgba(232,198,106,.15); } .chatIn input { flex:1; width:auto !important; }
+  .lobbyFoot { display:flex; justify-content:space-between; align-items:flex-end; width:100%; margin-top:6px; gap:10px; }
+  .lfLeft { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+  #mpWait { margin-top:0 !important; text-align:left; }
+  #modeRow { flex-wrap:nowrap; white-space:nowrap; gap:6px; }
+  #mp #modeRow { margin:6px 0; } #mp #modeRow .modeBtn, #mp #modeRow .diffBtn { padding:6px 10px; font-size:13px; }
   .hint { color:var(--dim); font-size:12px; margin-bottom:10px; }
   .modeBtn { font-family:Cinzel,serif; font-weight:700; background:rgba(40,30,20,.9); color:var(--ink); border:1px solid rgba(232,198,106,.35); border-radius:6px; padding:8px 16px; cursor:pointer; font-size:14px; }
   .modeBtn.sel { background:var(--gold2); color:#1a120a; border-color:var(--gold); }
@@ -279,11 +291,17 @@
       </div>
       <div id="mpLobby" class="hidden">
         <div class="mpHead" id="mpLobbyTitle">Your lobby</div>
-        <div id="mpInfo"></div><div id="mpPlayers"></div>
+        <div id="mpInfo"></div>
+        <div class="lobbyMain">
+          <div id="mpPlayers"></div>
+          <div id="mpChat"><div id="chatLog"></div><div class="chatIn"><input id="chatText" class="tin" maxlength="140" placeholder="Say something…" autocomplete="off"><button class="btn" id="chatSend">Send</button></div></div>
+        </div>
         <div id="modeSlotOnline"></div>
-        <div class="mpRow"><button class="btn" id="mpGear">Choose weapons &amp; skills</button><button class="btn" id="mpLeave">Leave lobby</button></div>
-        <button class="btn big" id="mpStartBtn">START MATCH</button>
-        <div id="mpWait">The host starts the match. Pick your weapons and skills meanwhile.</div>
+        <button class="btn" id="mpGear">Choose weapons &amp; skills</button>
+        <div class="lobbyFoot">
+          <div class="lfLeft"><button class="btn big" id="mpStartBtn">START MATCH</button><div id="mpWait">The host starts the match. Pick your weapons and skills meanwhile.</div></div>
+          <button class="btn" id="mpLeave">Leave lobby</button>
+        </div>
       </div>
       <div id="mpMsg"></div>
     </div>
@@ -364,19 +382,19 @@
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/util.js?v=53"></script>
-<script src="js/sound.js?v=53"></script>
-<script src="js/music.js?v=53"></script>
-<script src="js/map.js?v=53"></script>
-<script src="js/weapons.js?v=53"></script>
-<script src="js/weapons2.js?v=53"></script>
-<script src="js/weapons3.js?v=53"></script>
-<script src="js/fighter.js?v=53"></script>
-<script src="js/models2.js?v=53"></script>
-<script src="js/ai.js?v=53"></script>
-<script src="js/effects.js?v=53"></script>
-<script src="js/net.js?v=53"></script>
-<script src="js/game.js?v=53"></script>
-<script src="js/hudedit.js?v=53"></script>
+<script src="js/util.js?v=54"></script>
+<script src="js/sound.js?v=54"></script>
+<script src="js/music.js?v=54"></script>
+<script src="js/map.js?v=54"></script>
+<script src="js/weapons.js?v=54"></script>
+<script src="js/weapons2.js?v=54"></script>
+<script src="js/weapons3.js?v=54"></script>
+<script src="js/fighter.js?v=54"></script>
+<script src="js/models2.js?v=54"></script>
+<script src="js/ai.js?v=54"></script>
+<script src="js/effects.js?v=54"></script>
+<script src="js/net.js?v=54"></script>
+<script src="js/game.js?v=54"></script>
+<script src="js/hudedit.js?v=54"></script>
 </body>
 </html>

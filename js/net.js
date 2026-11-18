@@ -57,6 +57,24 @@ const Net = (() => {
   const sfxPlay = Sfx.play;
   Sfx.play = function (name, vol, pos) { if (pos) N.rec('snd', name, vol, pos); return sfxPlay.call(this, name, vol, pos); };
 
+  // ---------- lobby chat (text only, shown with textContent so nobody can inject anything) ----------
+  const cleanChat = (t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  function chatAdd(from, text, sys) {
+    const log = document.getElementById('chatLog'); if (!log || !text) return;
+    const d = document.createElement('div'); d.className = 'chatL' + (sys ? ' sys' : '');
+    if (from && !sys) { const b = document.createElement('b'); b.textContent = from + ': '; d.appendChild(b); }
+    d.appendChild(document.createTextNode(text));
+    log.appendChild(d); while (log.children.length > 100) log.firstChild.remove();
+    log.scrollTop = log.scrollHeight;
+    if (!sys && G.state === 'menu' && from !== N.name) Sfx.play('tick', 0.4);
+  }
+  function bcastChat(from, text, sys) { for (const fr of friends) if (fr.hello && fr.conn.open) { try { fr.conn.send({ t: 'chat', from, text, sys: sys ? 1 : 0 }); } catch (e) { } } }
+  function chatSend() {
+    const inp = document.getElementById('chatText'); const t = cleanChat(inp.value); if (!t || !N.active) return;
+    inp.value = '';
+    if (N.isHost) { chatAdd(N.name, t); bcastChat(N.name, t); } else send({ t: 'chat', text: t });
+  }
+
   // ---------- lobby UI ----------
   const $$ = (id) => document.getElementById(id);
   function info(t) { const el = $$('mpInfo'); if (el) el.innerHTML = t; }
@@ -145,11 +163,18 @@ const Net = (() => {
             setTimeout(() => { try { fr.conn.close(); } catch (e) { } }, 400); dropFriend(fr); return;
           }
           fr.hello = true;
+          chatAdd('', `${fr.name} joined`, true); bcastChat('', `${fr.name} joined`, true);
           const n0 = 1 + friends.filter(x => x !== fr && x.team === 0).length, n1 = friends.filter(x => x !== fr && x.team === 1).length;
           fr.team = n0 <= n1 ? 0 : 1; // join the smaller team
           if (G.state === 'menu') Sfx.play('tick', 0.8);
         }
         pushLobby(); break;
+      case 'chat': {
+        if (!fr.hello) break;
+        const now = performance.now(); if (now - (fr.chatAt || 0) < 400) break; fr.chatAt = now; // no spam
+        const t = cleanChat(d.text); if (!t) break;
+        chatAdd(fr.name, t); bcastChat(fr.name, t); break;
+      }
       case 'team': if (!fr.hello) break; if (d.team === 0 || d.team === 1) { fr.team = d.team; pushLobby(); } break;
       case 'i':
         if (Array.isArray(d.mv) && Array.isArray(d.ad) && Array.isArray(d.ap)) { fr.inp = d; fr.inpAt = performance.now(); }
@@ -160,6 +185,7 @@ const Net = (() => {
   function dropFriend(fr) {
     const i = friends.indexOf(fr); if (i < 0) return;
     friends.splice(i, 1);
+    if (fr.hello) { chatAdd('', `${fr.name} left`, true); bcastChat('', `${fr.name} left`, true); }
     if (fr.f && G.fighters.includes(fr.f)) { // a bot takes over their fighter
       const f = fr.f; f.isPlayer = false; f.human = false; f.ctrl = null; new Bot(f, G.diff);
       G.msg('', `${f.name} left · a bot takes over`, 2.5);
@@ -297,6 +323,7 @@ const Net = (() => {
   function leave() {
     if (N.isHost) for (const fr of friends) { try { fr.conn.send({ t: 'bye' }); } catch (e) { } }
     if (N.isHost) dirUnreg();
+    const cl = $$('chatLog'); if (cl) cl.innerHTML = '';
     const p = peer; peer = null; hostConn = null; friends = []; hostPass = '';
     N.active = N.isHost = N.isClient = false; lobby = null;
     if (p) setTimeout(() => { try { p.destroy(); } catch (e) { } }, 200);
@@ -387,6 +414,7 @@ const Net = (() => {
     if (!m || typeof m !== 'object') return;
     switch (m.t) {
       case 'lobby': lobby = m; drawPlayers(m.players, m.you); if (m.playing && G.state === 'menu') info('A match is on · you will join the next one.'); else if (G.state === 'menu') info('Connected · waiting for the host to start the match…'); break;
+      case 'chat': chatAdd(String(m.from || '').slice(0, 16), cleanChat(m.text), !!m.sys); break;
       case 'full': $$('mpMsg').textContent = 'That lobby is full.'; break;
       case 'denied': { leave(); $$('mpMsg').textContent = 'Wrong password for that lobby.'; break; }
       case 'start': startClient(m); break;
@@ -603,6 +631,8 @@ const Net = (() => {
     $$('joinBtn').onclick = () => { Sfx.init(); joinGame($$('mpCode').value, $$('mpCodePass').value); };
     $$('mpCode').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') joinGame($$('mpCode').value, $$('mpCodePass').value); });
     for (const id of ['mpName', 'mpPass', 'mpCodePass']) $$(id).addEventListener('keydown', (e) => e.stopPropagation());
+    $$('chatSend').onclick = chatSend;
+    $$('chatText').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') chatSend(); });
     const hi = $$('mpHideIp'); hi.checked = N.hideIp; hi.onchange = () => { N.hideIp = hi.checked; saveSettings(); };
     if (RELAY_OK) $$('mpHideIpRow').style.display = '';
     $$('mpLeave').onclick = () => { leave(); if (typeof showPage === 'function') showPage('pgOnline'); };
