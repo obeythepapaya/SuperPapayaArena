@@ -529,7 +529,7 @@ class Fighter {
     }
     Phys.resolve(this.pos, this.radius);
     this.vy -= 24 * dt; this.yOff += this.vy * dt;
-    if (this.yOff <= 0) { if (this.vy < -6) Sfx3(this, 'land', Math.min(1, -this.vy / 12)); this.yOff = 0; this.vy = 0; }
+    if (this.yOff <= 0) { if (this.vy < -6) { Sfx3(this, 'land', Math.min(1, -this.vy / 12)); G.fx.dust(this.pos); } this.yOff = 0; this.vy = 0; }
     this.pos.y = groundH(this.pos.x, this.pos.z) + this.yOff;
 
     // facing
@@ -655,6 +655,10 @@ class Fighter {
       this.flash = Math.max(this.flash, 0.15 + c * 0.25 * (0.6 + 0.4 * Math.sin(G.time * 20)));
     } else { this.chargeFull = false; this.chargeStart = G.time; }
     if (this.has('stance')) { b.position.y -= 0.12; this.legL.rotation.x = -0.5; this.legR.rotation.x = 0.4; }
+    if (this.yOff > 0.05 && !(a && a.anim === 'roll')) { // in the air: knees tucked, arms out for balance
+      const k = clamp(this.yOff / 0.5, 0, 1); this.legL.rotation.x = -1.0 * k; this.legR.rotation.x = -0.35 * k;
+      if (!a && !this.blocking && !this.aiming) { aR.x -= 0.35 * k; aL.x -= 0.35 * k; aR.z -= 0.35 * k; aL.z += 0.35 * k; }
+    }
     if (this.has('riposte') && this.blade) this.blade.rotation.x = Math.PI / 2 - 1.2;
     // smoothing: every joint eases from last frame's pose to this frame's target (fast during attacks, softer otherwise)
     if (!this._joints) {
